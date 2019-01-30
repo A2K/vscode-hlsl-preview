@@ -1,5 +1,12 @@
 HLSL preview for VSCode
 =======
+## Features
+* Updates in real time, see the result as you type
+* Includes an easy to use GUI for setting up variables
+* Configurable entry point 
+* DirectX 11 syntax support
+* Compiler error reporting
+* Textures
 
 ## Setup
 
