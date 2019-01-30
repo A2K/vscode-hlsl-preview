@@ -19,7 +19,6 @@ https://github.com/Microsoft/DirectXShaderCompiler.
 #### SPIRV-Cross
 1. Compile or download a build of SPIRV-Cross:
 https://github.com/KhronosGroup/SPIRV-Cross.
-1. Add `SPIRV-Cross` executable to `PATH`.
 1. Add `SPIRV-Cross` executable to `PATH` or set `hlsl.preview.spirvcrossExecutablePath`.
 
 ## Usage

@@ -3,6 +3,7 @@
 import * as cp from 'child_process';
 import * as vscode from 'vscode';
 
+
 export class GLSLCode {
 
     public code: string;
@@ -49,8 +50,9 @@ export default class GLSLCompiler {
             });
             
             if (!childProcess.pid) {
-                console.error('!childProcess.pid');
-                reject("no child process pid");
+                let errorMessage = "no child process pid (failed to create process)";
+                console.error(errorMessage);
+                reject(errorMessage);
                 return;
             }
 

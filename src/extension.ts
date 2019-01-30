@@ -10,7 +10,6 @@ import { ThrottledDelayer } from './async';
 
 const InternalParameters = [ 'iTime', 'iResolution' ];
 
-
 function getMediaPath(context: vscode.ExtensionContext, mediaFile: string): vscode.Uri {
 	return vscode.Uri.file(context.asAbsolutePath(path.join('media', mediaFile))).with({ scheme: 'vscode-resource' });//.toString();
 }
@@ -160,10 +159,8 @@ class HLSLPreview
 		const columnToShowIn: vscode.ViewColumn = vscode.ViewColumn.Two;
 
 		if (this.currentPanel) {
-			// If we already have a panel, show it in the target column
 			this.currentPanel.reveal(columnToShowIn);
 		} else {
-			// Otherwise, create a new panel
 			this.currentPanel = vscode.window.createWebviewPanel(
 				'hlslpreview',
 				'HLSL preview',
