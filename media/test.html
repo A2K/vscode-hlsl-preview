@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>HLSL preview</title>
+        <script src="scripts/jquery.min.js" language="javascript"></script>
+        <script src="scripts/three.js" language="javascript"></script>
+    </head>
+    <script id="uniformsJson" type="x-shader/x-fragment">{"_Globals": { "test": "float", "TextureSize": "vec4" }}</script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        precision mediump float;
+        precision highp int;
+        
+        struct type_Globals
+        {
+            highp float rPlanet;
+            highp float SafetyHeightMargin;
+            highp float rAtmos;
+            highp float RenderLimit;
+            highp float HeightPower;
+            highp float ViewZenithPower;
+            highp float SunViewPower;
+            highp vec4 TextureSize;
+        };
+        
+        uniform type_Globals _Globals;
+        
+        varying highp vec2 in_var_TEXCOORD0;
+        
+        highp float GetCosHorizonAnlge(inout highp float fHeight)
+        {
+            fHeight = max(fHeight, 0.0);
+            return (-sqrt(fHeight * ((2.0 * _Globals.rPlanet) + fHeight))) / (_Globals.rPlanet + fHeight);
+        }
+        
+        highp float TexCoord2ZenithAngle(inout highp float fTexCoord, highp float fHeight, highp float fTexDim, highp float power)
+        {
+            highp float param_var_fHeight = fHeight;
+            highp float _172 = GetCosHorizonAnlge(param_var_fHeight);
+            highp float fCosHorzAngle = _172;
+            highp float fCosZenithAngle;
+            if (fTexCoord > 0.5)
+            {
+                fTexCoord = clamp(((fTexCoord - (0.5 + (0.5 / fTexDim))) * fTexDim) / ((fTexDim / 2.0) - 1.0), 0.0, 1.0);
+                fTexCoord = pow(fTexCoord, 1.0 / power);
+                fCosZenithAngle = max(fCosHorzAngle + (fTexCoord * (1.0 - fCosHorzAngle)), fCosHorzAngle + 9.9999997473787516355514526367188e-05);
+            }
+            else
+            {
+                fTexCoord = clamp(((fTexCoord - (0.5 / fTexDim)) * fTexDim) / ((fTexDim / 2.0) - 1.0), 0.0, 1.0);
+                fTexCoord = pow(fTexCoord, 1.0 / power);
+                fCosZenithAngle = min(fCosHorzAngle - (fTexCoord * (fCosHorzAngle - (-1.0))), fCosHorzAngle - 9.9999997473787516355514526367188e-05);
+            }
+            return fCosZenithAngle;
+        }
+        
+        void InsctrLUTCoords2WorldParams(inout highp vec4 f4UVWQ, inout highp float fHeight, out highp float fCosViewZenithAngle, out highp float fCosSunZenithAngle, out highp float fCosSunViewAngle)
+        {
+            highp vec3 _74 = clamp(((f4UVWQ * _Globals.TextureSize) - vec4(0.5)) / (_Globals.TextureSize - vec4(1.0)), vec4(0.0), vec4(1.0)).xzw;
+            f4UVWQ = vec4(_74.x, f4UVWQ.y, _74.y, _74.z);
+            f4UVWQ.x = pow(f4UVWQ.x, 1.0 / _Globals.HeightPower);
+            fHeight = (f4UVWQ.x * ((_Globals.rAtmos * _Globals.RenderLimit) - (2.0 * _Globals.SafetyHeightMargin))) + _Globals.SafetyHeightMargin;
+            highp float param_var_fTexCoord = f4UVWQ.y;
+            highp float param_var_fHeight = fHeight;
+            highp float param_var_fTexDim = _Globals.TextureSize.y;
+            highp float param_var_power = _Globals.ViewZenithPower;
+            highp float _121 = TexCoord2ZenithAngle(param_var_fTexCoord, param_var_fHeight, param_var_fTexDim, param_var_power);
+            fCosViewZenithAngle = _121;
+            fCosSunZenithAngle = tan((((2.0 * f4UVWQ.z) - 1.0) + 0.2599999904632568359375) * 1.10000002384185791015625) / tan(1.2599999904632568359375 * 1.099999904632568359375);
+            f4UVWQ.w = ((float(int(sign(f4UVWQ.w - 0.5))) * pow(abs((f4UVWQ.w - 0.5) * 2.0), 1.0 / _Globals.SunViewPower)) / 2.0) + 0.5;
+            fCosSunViewAngle = cos(f4UVWQ.w * 3.1415927410125732421875);
+        }
+        
+        void src_testFunc(highp vec2 uv, highp vec4 Position, out highp vec4 OutColor)
+        {
+            highp vec4 param_var_f4UVWQ = Position;
+            highp float fHeight;
+            highp float fCosViewZenithAngle;
+            highp float fCosSunZenithAngle;
+            highp float fCosSunViewAngle;
+            InsctrLUTCoords2WorldParams(param_var_f4UVWQ, fHeight, fCosViewZenithAngle, fCosSunZenithAngle, fCosSunViewAngle);
+            OutColor = vec4(fHeight, fCosViewZenithAngle, fCosSunZenithAngle, fCosSunViewAngle);
+        }
+        
+        void main()
+        {
+            highp vec4 param_var_Position = gl_FragCoord;
+            highp vec2 param_var_uv;
+            highp vec4 param_var_OutColor;
+            src_testFunc(param_var_uv, param_var_Position, param_var_OutColor);
+            gl_FragColor = param_var_OutColor;
+        }
+    </script>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        uniform float time;
+        uniform vec2 resolution;
+        varying highp vec2 in_var_TEXCOORD0;
+        void main()	{
+            in_var_TEXCOORD0 = uv;
+            gl_Position = vec4( position, 1.0 );
+        }
+    </script>
+    <body>
+        <div id="content"></div>
+        <script src="scripts/main.js" language="javascript"></script>
+    </body>
+</html>

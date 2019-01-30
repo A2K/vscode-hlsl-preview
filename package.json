@@ -1,0 +1,49 @@
+{
+	"name": "hlsl-preview",
+	"displayName": "HLSL preview",
+	"description": "Real time preview for HLSL shaders",
+	"version": "0.1.0",
+	"engines": {
+		"vscode": "^1.30.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onCommand:hlsl.preview.start",
+		"onCommand:hlsl.preview.test"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "hlsl.preview.start",
+				"title": "Preview HLSL"
+			},
+			{
+				"command": "hlsl.preview.test",
+				"title": "Test HLSL preview"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"postinstall": "node ./node_modules/vscode/bin/install",
+		"test": "npm run compile && node ./node_modules/vscode/bin/test"
+	},
+	"dependencies": {
+		"@types/tempfile": "^2.0.0",
+		"tempfile": "^2.0.0"
+	},
+	"devDependencies": {
+		"typescript": "^3.1.4",
+		"vscode": "^1.1.25",
+		"tslint": "^5.8.0",
+		"@types/node": "^8.10.25",
+		"@types/mocha": "^2.2.42",
+		"@types/tempfile": "^2.0.0",
+		"tempfile": "^2.0.0"
+	}
+}
