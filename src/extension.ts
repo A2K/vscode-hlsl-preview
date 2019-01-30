@@ -7,6 +7,10 @@ import { GLSLCode } from './glsl';
 
 import { ThrottledDelayer } from './async';
 
+
+const InternalParameters = [ 'iTime', 'iResolution' ];
+
+
 function getMediaPath(context: vscode.ExtensionContext, mediaFile: string): vscode.Uri {
 	return vscode.Uri.file(context.asAbsolutePath(path.join('media', mediaFile))).with({ scheme: 'vscode-resource' });//.toString();
 }
@@ -225,7 +229,7 @@ class HLSLPreview
 					let name = member['name'];
 					let type = member['type'];
 
-					if (structName === '_Globals' && (name === 'iTime' || name === 'iResolution')) {
+					if (structName === '_Globals' && (InternalParameters.indexOf(name) >= 0)) {
 						return;
 					}
 

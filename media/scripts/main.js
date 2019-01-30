@@ -81,9 +81,7 @@ function UpdateMaterial()
             }
         });
     }
-    else{
-        console.error('UpdateMaterial: _Globals not in window.uniforms: ' + JSON.stringify(window.uniforms));
-    }
+    
     if (window.material) 
     {
         if ((window.material.fragmentShader !== window.fragmentShaderCode) 
