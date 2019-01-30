@@ -2,7 +2,15 @@
 	"name": "hlsl-preview",
 	"displayName": "HLSL preview",
 	"description": "Real time preview for HLSL shaders",
-	"version": "0.1.0",
+	"version": "0.1.1",
+	"bugs": {
+		"url": "https://github.com/A2K/vscode-hlsl-preview/issues"
+	},
+	"homepage": "https://github.com/A2K/vscode-hlsl-preview",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/A2K/vscode-hlsl-preview.git"
+	},
 	"engines": {
 		"vscode": "^1.30.0"
 	},
@@ -10,8 +18,7 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:hlsl.preview.start",
-		"onCommand:hlsl.preview.test"
+		"onCommand:hlsl.preview.start"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -19,10 +26,6 @@
 			{
 				"command": "hlsl.preview.start",
 				"title": "Preview HLSL"
-			},
-			{
-				"command": "hlsl.preview.test",
-				"title": "Test HLSL preview"
 			}
 		]
 	},
