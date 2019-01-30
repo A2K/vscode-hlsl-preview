@@ -2,7 +2,8 @@
 	"name": "hlsl-preview",
 	"displayName": "HLSL preview",
 	"description": "Real time preview for HLSL shaders",
-	"version": "0.1.1",
+	"version": "0.1.5",
+	"publisher": "A2K",
 	"bugs": {
 		"url": "https://github.com/A2K/vscode-hlsl-preview/issues"
 	},
@@ -21,14 +22,6 @@
 		"onCommand:hlsl.preview.start"
 	],
 	"main": "./out/extension.js",
-	"contributes": {
-		"commands": [
-			{
-				"command": "hlsl.preview.start",
-				"title": "Preview HLSL"
-			}
-		]
-	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./",
@@ -48,5 +41,77 @@
 		"@types/mocha": "^2.2.42",
 		"@types/tempfile": "^2.0.0",
 		"tempfile": "^2.0.0"
+	},
+	"contributes": {		
+		"commands": [
+			{
+				"command": "hlsl.preview.start",
+				"title": "Preview HLSL"
+			}
+		],
+		"configuration": {
+			"type": "object",
+			"title": "HLSL preview",
+			"properties": {
+				"hlsl.preview.dxcExecutablePath": {
+					"type": "string",
+					"default": "dxc",
+					"description": "The dxc executable from DirectX Shader Compiler: https://github.com/Microsoft/DirectXShaderCompiler"
+				},
+				"hlsl.preview.spirvcrossExecutablePath": {
+					"type": "string",
+					"default": "SPIRV-Cross",
+					"description": "The SPIRV-Cross executable: https://github.com/KhronosGroup/SPIRV-Cross"
+				},
+				"hlsl.preview.trigger": {
+					"type": "string",
+					"enum": [
+						"onSave",
+						"onType"
+					],
+					"default": "onType",
+					"description": "When to update the preview."
+				},
+				"hlsl.preview.delay": {
+					"type": "number",
+					"default": "500",
+					"description": "Trigger delay and max update frequency."
+				},
+				"hlsl.preview.includeDirs": {
+					"type": [ "string", "array" ],
+					"items": { 
+						"type": "string"
+					},
+					"default": [
+					],
+					"description": "List of include directories."
+				},
+				"hlsl.preview.dxcDefaultArgs": {
+					"type": [ "string", "array" ],
+					"items": { 
+						"type": "string"
+					},
+					"default": [
+						"-Od",
+						"-Ges",
+						"-spirv"
+					],
+					"description": "The dxt executable default arguments."
+				},
+				"hlsl.preview.spirvcrossDefaultArgs": {
+					"type": [ "string", "array" ],
+					"items": { 
+						"type": "string"
+					},
+					"default": [
+						"--version",
+						"2.0",
+						"--es"
+					],
+					"description": "The SPIRV-Cross executable default arguments."
+				}
+				
+			}
+		}
 	}
 }

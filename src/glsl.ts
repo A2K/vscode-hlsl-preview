@@ -19,10 +19,15 @@ export default class GLSLCompiler {
     
     private defaultArgs: string[] = [ '--version', '2.0', '--es' ];
 
-    private executable: string = "D:\\Desktop\\SPIRV-Cross-2019-01-17\\msvc\\Debug\\SPIRV-Cross.exe";
+    private executable: string = "SPIRV-Cross.exe";
 
     constructor() {
+        let section = vscode.workspace.getConfiguration('hlsl');
 
+        if (section) {
+            this.executable = section.get<string>('preview.spirvcrossExecutablePath', this.executable);
+            this.defaultArgs = section.get<string[]>('preview.spirvcrossDefaultArgs', this.defaultArgs);
+        }
     }
 
     public Compile(filename: string, reflect: boolean = false): Promise<string>
@@ -58,9 +63,6 @@ export default class GLSLCompiler {
             var err: string = "";
             childProcess.stderr.on('data', (data: Buffer) => {
                 err += data.toString();
-            });
-            childProcess.stderr.on('end', (data: Buffer) => {
-                //console.log('error: ' + err);
             });
 
             childProcess.on('exit', (code) => {

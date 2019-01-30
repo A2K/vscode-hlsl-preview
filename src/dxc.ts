@@ -14,7 +14,8 @@ export default class HLSLCompiler {
 
     private includeDirs: string[] = [];
 
-    private defaultArgs: string[] = [];
+    private defaultArgs: string[] = [ "-Od", "-Ges", "-spirv", "-fspv-reflect" ];    
+    //"-fspv-target-env=vulkan1.1"
 
     constructor() {
         this.loadConfiguration();
@@ -96,19 +97,11 @@ export default class HLSLCompiler {
             args.push('-T');
             args.push(profile);
 
-            args.push('-spirv');
-
-            args.push('-Od');
-            args.push('-fspv-reflect');
-
             args.push('-E');
             args.push(entryPointName);
 
             args.push('-Fo');
             args.push(filenameSPIRV);
-
-            //args.push('-fspv-target-env=vulkan1.1');
-            args.push('-Ges');
 
             args.push(filename);
 
@@ -144,7 +137,7 @@ export default class HLSLCompiler {
                     }
                     var message: string;
                     if ((<any>error).code === 'ENOENT') {
-                        message = `Cannot lint the HLSL file. The 'dxc' program was not found. Use the 'hlsl.linter.executablePath' setting to configure the location of 'dxc'`;
+                        message = `Cannot preview the HLSL file: The 'dxc' program was not found. Use the 'hlsl.preview.dxcExecutablePath' setting to configure the location of 'dxc'`;
                     } else {
                         message = error.message ? error.message : `Failed to run dxc using path: ${executable}. Reason is unknown.`;
                     }
@@ -159,16 +152,8 @@ export default class HLSLCompiler {
                     stderr += buffer.toString();
                 });
 
-                childProcess.stderr.on('end', (buffer: Buffer) => {
-                    if (stderr) {
-                        //console.log('stderr: ' + stderr);
-                    }
-                });
-
                 childProcess.on('exit', (e) => {
 
-                    //console.log('dxc exit event:', e);
-                    
                     cleanup();
                     if (e === 0) {
                         resolve(filenameSPIRV);
@@ -185,17 +170,10 @@ export default class HLSLCompiler {
         let section = vscode.workspace.getConfiguration('hlsl');
 
         if (section) {
-            this.executable = section.get<string>('preview.executablePath', "D:\\Desktop\\DXC\\bin\\dxc.exe");
+            this.executable = section.get<string>('preview.dxcExecutablePath', this.executable);
+            this.defaultArgs = section.get<string[]>('preview.dxcDefaultArgs', this.defaultArgs);
             this.includeDirs = section.get<string[]>('preview.includeDirs') || [];
-            this.defaultArgs = section.get<string[]>('preview.defaultArgs') || [];
         }
     }
 
 }
-
-/*
-export function activate(context: vscode.ExtensionContext): void {
-    let linter = new HLSLLintingProvider();
-    linter.activate(context.subscriptions);
-}
-*/

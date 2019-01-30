@@ -48,6 +48,26 @@ function getWebviewContent(context: vscode.ExtensionContext): string
 	`;
 }
 
+enum RunTrigger {
+    onSave,
+    onType
+}
+
+namespace RunTrigger {
+    'use strict';
+    export let strings = {
+        onSave: 'onSave',
+        onType: 'onType'
+    };
+    export let from = function (value: string): RunTrigger {
+        if (value === 'onSave') {
+            return RunTrigger.onSave;
+        }
+		
+		return RunTrigger.onType;
+    };
+}
+
 class HLSLPreview
 {
 	private currentPanel: vscode.WebviewPanel | undefined = undefined;
@@ -62,39 +82,45 @@ class HLSLPreview
 
 	private entryPointName:string = "main";
 
+	private trigger = RunTrigger.onType;
+
 	constructor(context: vscode.ExtensionContext) {
 		this.context = context;
+		let section = vscode.workspace.getConfiguration('hlsl');
+
+        if (section) {
+			this.trigger = RunTrigger.from(section.get<string>('preview.trigger', RunTrigger.strings.onType));
+		}
+	}
+
+	public onStartCommand() {
+		if (!vscode.window.activeTextEditor){
+			console.error('no active text editor');
+			return;
+		}
+
+		this.currentDocument = vscode.window.activeTextEditor.document;
+
+		let defaultEntryPoint:string = this.context.workspaceState.get('hlsl.preview.entrypoint') || "main";
+
+		let dialogOptions: vscode.InputBoxOptions = {
+			prompt: "Entry point name: ",
+			placeHolder: 'main',
+			value: defaultEntryPoint,
+			valueSelection: [0, defaultEntryPoint.length]
+		};
 		
-		vscode.commands.registerCommand('hlsl.preview.start', () => {
-			
-			if (!vscode.window.activeTextEditor){
-				console.error('no active text editor');
-				return;
+		vscode.window.showInputBox(dialogOptions).then(value => { 
+			if (typeof(value) === 'undefined') { return; }
+
+			if (value === "") {
+				value = "main"; 
+			} else {
+				this.context.workspaceState.update('hlsl.preview.entrypoint', value);
 			}
 
-			this.currentDocument = vscode.window.activeTextEditor.document;
-
-			let defaultEntryPoint:string = context.workspaceState.get('hlsl.preview.entrypoint') || "main";
-
-			let dialogOptions: vscode.InputBoxOptions = {
-                prompt: "Entry point name: ",
-				placeHolder: 'main',
-				value: defaultEntryPoint,
-				valueSelection: [0, defaultEntryPoint.length]
-            }
-            
-            vscode.window.showInputBox(dialogOptions).then(value => { 
-				if (typeof(value) === 'undefined') { return; }
-
-				if (value === "") {
-					value = "main"; 
-				} else {
-					context.workspaceState.update('hlsl.preview.entrypoint', value);
-				}
-
-				this.entryPointName = value;
-				this.StartPreview();
-			});
+			this.entryPointName = value;
+			this.StartPreview();
 		});
 	}
 
@@ -111,7 +137,19 @@ class HLSLPreview
 		}
 
 		if (!this.triggerSubscribed) {
-			vscode.workspace.onDidChangeTextDocument(this.onDidChangeTextDocument.bind(this));
+			if (this.trigger === RunTrigger.onType) {
+				vscode.workspace.onDidChangeTextDocument(((event: vscode.TextDocumentChangeEvent) => {
+					if (this.currentDocument === event.document) {
+						this.UpdateShader();
+					}
+				}).bind(this));
+			} else {
+				vscode.workspace.onDidSaveTextDocument(((document: vscode.TextDocument): any => {
+					if (this.currentDocument === document) {
+						this.UpdateShader();
+					}
+				}).bind(this));
+			}
 			this.triggerSubscribed = true;
 		}
 
@@ -262,6 +300,11 @@ class HLSLPreview
 
 export function activate(context: vscode.ExtensionContext) {
 	let preview = new HLSLPreview(context);
+		
+	vscode.commands.registerCommand(
+		'hlsl.preview.start', 
+		preview.onStartCommand.bind(preview)
+	);
 }
 
 export function deactivate() {}
