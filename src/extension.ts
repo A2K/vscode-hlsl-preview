@@ -10,6 +10,26 @@ import { ThrottledDelayer } from './async';
 
 const InternalParameters = [ 'iTime', 'iResolution' ];
 
+
+function GetIfdefs(text: string): string[] 
+{
+	let ifdefs:string[] = [];
+
+	let comment_re = /(\"[^\"]*\"(?!\\))|(\/\/[^\n]*$|\/(?!\\)\*[\s\S]*?\*(?!\\)\/)/mg;
+	let nocomments = text.replace(comment_re, '');
+	
+	const re = /^\s*#if(?:def\s+|\s+defined\(\s*)(\w+)\)?\s*$/gm;
+	var m;
+	while (m = re.exec(nocomments)) {
+		let name = m[1];
+		if (ifdefs.indexOf(name) < 0) {
+			ifdefs.push(name);
+		}
+	}
+
+	return ifdefs;
+}
+
 function getMediaPath(context: vscode.ExtensionContext, mediaFile: string): vscode.Uri {
 	return vscode.Uri.file(context.asAbsolutePath(path.join('media', mediaFile))).with({ scheme: 'vscode-resource' });//.toString();
 }
@@ -177,16 +197,38 @@ class HLSLPreview
 			
 			this.currentPanel.webview.html = getWebviewContent(this.context);
 
-			this.currentPanel.webview.onDidReceiveMessage(e => {
+			this.currentPanel.webview.onDidReceiveMessage(((e: any) => {
 				switch (e.type) {
-				  case 'updateUniforms':
-					if (this.currentDocument) {					  
-						let key = 'uniforms_' + this.currentDocument.uri.toString();
-						this.context.workspaceState.update(key, e.data);
-					}
-				  break;
+					case 'updateUniforms':
+						if (this.currentDocument) {
+							let key = 'uniforms_' + this.currentDocument.uri.toString();
+							this.context.workspaceState.update(key, e.data);
+						}
+						break;
+					case 'updateEnabledIfdefs':
+						if (this.currentDocument) {
+							let key = 'ifdefs_' + this.currentDocument.uri.toString();
+							let oldEnabledIfdefs = this.context.workspaceState.get<string[]>(key);
+
+							var needUpdateShader = false;
+							if (oldEnabledIfdefs && (oldEnabledIfdefs.length === e.data.length)) {
+								oldEnabledIfdefs.forEach(ifdef => {
+									if (e.data.indexOf(ifdef) < 0) {
+										needUpdateShader = true;
+									}
+								});
+							} else {
+								needUpdateShader = true;
+							}
+
+							if (needUpdateShader) {
+								this.context.workspaceState.update(key, e.data);
+								this.UpdateShader();
+							}
+						}
+						break;
 				}
-			  });
+			  }).bind(this));
 
 
 			  let key = 'uniforms_' + this.currentDocument.uri.toString();
@@ -266,8 +308,34 @@ class HLSLPreview
 				reject("no current document");
 				return;
 			}
+
+			let ifdefs = GetIfdefs(this.currentDocument.getText());
+			let enabledIfdefs:string[] = [];
+			if (ifdefs.length > 0) {
+				let key = 'ifdefs_' + this.currentDocument.uri.toString();
+				let savedEnabledIfdefs = this.context.workspaceState.get<string[]>(key);
+				if (savedEnabledIfdefs) {
+					savedEnabledIfdefs.forEach(ifdef => {
+						if (ifdefs.indexOf(ifdef) >= 0) {
+							enabledIfdefs.push(ifdef);
+						}
+					});
+					this.context.workspaceState.update(key, enabledIfdefs);
+				}
+			}
+
+			if (this.currentPanel) {				
+				this.currentPanel.webview.postMessage({
+					command: 'updateIfdefs',
+					data: {
+						ifdefs: ifdefs,
+						enabledIfdefs: enabledIfdefs
+					}
+				});
+			}
 			
-			this.recompiler.HLSL2GLSL(this.currentDocument, this.entryPointName).then((glslCode) => {
+			
+			this.recompiler.HLSL2GLSL(this.currentDocument, this.entryPointName, enabledIfdefs).then((glslCode) => {
 				if (this.currentPanel) {				
 					this.currentPanel.webview.postMessage({
 						command: 'updateFragmentShader',

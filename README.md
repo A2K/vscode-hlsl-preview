@@ -6,7 +6,6 @@ HLSL preview for VSCode
 * DirectX 11 syntax support
 * Compiler error reporting
 * Includes easy to use GUI for setting up variables
-* Textures
 
 ## Setup
 
@@ -22,8 +21,9 @@ https://github.com/KhronosGroup/SPIRV-Cross.
 1. Add `SPIRV-Cross` executable to `PATH` or set `hlsl.preview.spirvcrossExecutablePath`.
 
 ## Usage
-Simply open an HLSL file and execute "Preview HLSL" command.
+Simply open any HLSL file and execute "Preview HLSL" command.
 
 ## Limitations
-* `uint` are not supported
-* bitwise operations are not supported
+SPIRV-Cross limitations:
+* `uint`s are not supported.
+* bitwise operations on signed `int`s are not supported.

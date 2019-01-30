@@ -12,11 +12,11 @@ export default class HLSLtoGLSLRecompiler {
     private hlsl: HLSLCompiler = new HLSLCompiler();
     private glsl: GLSLCompiler = new GLSLCompiler();
 
-    public HLSL2GLSL(textDocument: vscode.TextDocument, entryPointName: string): Promise<GLSLCode> {
+    public HLSL2GLSL(textDocument: vscode.TextDocument, entryPointName: string, enabledIfdefs: string[]): Promise<GLSLCode> {
         
         return new Promise<GLSLCode>((resolve, reject) => {
 
-            this.hlsl.CompileToSPIRV(textDocument, entryPointName).then((filename) => {
+            this.hlsl.CompileToSPIRV(textDocument, entryPointName, enabledIfdefs).then((filename) => {
 
                 if (filename) {
                     this.glsl.Process(filename).then((glslCode) => {

@@ -333,3 +333,7 @@ div.displayFilename {
 table.settings {
     padding-right:5px;
 }
+
+input.ifdefCheckbox {
+    width: fit-content;
+}

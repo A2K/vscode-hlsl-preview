@@ -34,7 +34,37 @@ export default class HLSLCompiler {
         }).join('\n');
     }
 
-    public CompileToSPIRV(textDocument: vscode.TextDocument, entryPointName: string, profile: string = "ps_6_4"): Promise<string> {
+    /*
+    private GetIfdefs(text: string): string[] 
+    {
+        let ifdefs:string[] = [];
+
+        let comment_re = /(\"[^\"]*\"(?!\\))|(\/\/[^\n]*$|\/(?!\\)\*[\s\S]*?\*(?!\\)\/)/mg;
+        let nocomments = text.replace(comment_re, '');
+        
+        const re = /^\s*#if(?:def\s+|\s+defined\(\s*)(\w+)\)?\s*$/gm;
+        var m;
+        while (m = re.exec(nocomments)) {
+            let name = m[1];
+            if (ifdefs.indexOf(name) < 0) {
+                ifdefs.push(name);
+            }
+        }
+
+        return ifdefs;
+    }
+    */
+
+    private Preprocess(textDocument: vscode.TextDocument): string {
+        let text = textDocument.getText();
+        if (textDocument.fileName.endsWith(".ush")) {
+            text = text.replace(/#pragma\s+once[^\n]*\n/g, '//#pragma once\n');
+        }
+
+        return text;
+    }
+
+    public CompileToSPIRV(textDocument: vscode.TextDocument, entryPointName: string, enabledIfdefs: string[], profile: string = "ps_6_4"): Promise<string> {
 
         return new Promise<string>((resolve, reject) => {
 
@@ -49,11 +79,6 @@ export default class HLSLCompiler {
                 }
             }).bind(this, filename, filenameSPIRV);
 
-            let text = textDocument.getText();
-            if (textDocument.fileName.endsWith(".ush")) {
-                text = text.replace(/#pragma\s+once[^\n]*\n/g, '//#pragma once\n');
-            }
-
             let executable = this.executable || 'dxc';
 
             let options = vscode.workspace.rootPath ? { cwd: vscode.workspace.rootPath } : undefined;
@@ -65,6 +90,8 @@ export default class HLSLCompiler {
             var symbols: string[] = [];
 
             var predefined: { [key: string]: string } = {};
+
+            let text = this.Preprocess(textDocument);
 
             var m;
             while (m = re.exec(text)) {
@@ -89,10 +116,15 @@ export default class HLSLCompiler {
                 });
             }
 
-            for (var includeDir in this.includeDirs) {
+            this.includeDirs.forEach(includeDir => {
                 args.push("-I");
                 args.push(includeDir);
-            }
+            });
+
+            enabledIfdefs.forEach(ifdef => {
+                args.push("-D");
+                args.push(ifdef);
+            });
 
             args.push('-T');
             args.push(profile);

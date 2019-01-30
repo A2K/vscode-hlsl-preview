@@ -18,6 +18,8 @@ lat = 0, lon = 0, phy = 0, theta = 0;
 var windowHalfX = window.innerWidth / 2;
 var windowHalfY = window.innerHeight / 2;
 
+window.ifdefs = [];
+
 window.startTime = Date.now();
 
 window.maxZIndex = 100;
@@ -449,6 +451,8 @@ class Settings {
 
     constructor() {
 
+        this.vscode = acquireVsCodeApi();
+
         this.uniforms = {};
         this.uniformsValues = {};
         this.uniformsDesc = {};
@@ -584,6 +588,50 @@ class Settings {
         this.hidden = !this.hidden;
     }
 
+    buildIfdefField(ifdef)
+    {
+        let row = $('<tr>');
+        let cell1 = $('<td>')
+            .addClass('column1')
+            .text(ifdef);
+        
+        let cell2 = $('<td>')
+            .addClass('spacer')
+            .text(" ");
+
+        let cell3 = $('<td>')        
+            .addClass('column2');
+            
+        let checkbox = $(`<input type="checkbox" ${this.enabledIfdefs.indexOf(ifdef) < 0 ? '' : 'checked'}>`);
+        checkbox.addClass('ifdefCheckbox');
+
+        checkbox.data('ifdef', ifdef);
+        checkbox.on('change input keyup', ((checkbox, ifdef, event) => {
+
+            let checked = checkbox.is(":checked");
+            
+            let enabledIndex = this.enabledIfdefs.indexOf(ifdef);
+            let enabled = enabledIndex >= 0;
+            if (checked && !enabled) {
+                this.enabledIfdefs.push(ifdef);
+            }
+            if (!checked && enabled) {
+                this.enabledIfdefs.splice(enabledIndex, 1);
+            }
+
+            this.vscode.postMessage({
+                type: "updateEnabledIfdefs",
+                data: this.enabledIfdefs
+            });
+
+        }).bind(this, checkbox, ifdef));
+
+        return row
+            .append(cell1)
+            .append(cell2)
+            .append(cell3.append(checkbox));
+    }
+
     buildTable(uniformsDesc) {
 
         let scrollBox = $('<div>');
@@ -593,7 +641,13 @@ class Settings {
             .addClass('settings');
 
         this.uniforms = {};
-            
+
+
+        window.ifdefs.forEach(ifdef => {
+            let field = this.buildIfdefField(ifdef);
+            table.append(field);
+        });
+
         Object.keys(uniformsDesc).forEach(key => {
             let struct = uniformsDesc[key];
             var fields = {}
@@ -881,13 +935,14 @@ class Settings {
         this.updateUI();
     }
 
+    setEnabledIfdefs(enabledIfdefs) {
+        this.enabledIfdefs = enabledIfdefs;
+        this.updateUI();
+    }
+
     onSettingsUpdate() {
         this.buildUniforms();
-
-        if (!this.vscode) {
-            this.vscode = acquireVsCodeApi();
-        }
-
+        
         var serializedUniforms = {};
         Object.keys(this.uniformsValues).forEach(key => {
             if (this.uniformsValues[key]['type'] === 't') {
@@ -1076,6 +1131,11 @@ window.addEventListener("message", event => {
         } else {
             console.error('window.settings not initialized yet');
         }
+    }
+    else if (0 === event.data.command.localeCompare('updateIfdefs'))
+    {
+        window.ifdefs = event.data.data.ifdefs;
+        window.settings.setEnabledIfdefs(event.data.data.enabledIfdefs);
     }
 });
 
