@@ -1,4 +1,7 @@
 HLSL preview for VSCode
+
+Video: https://www.youtube.com/watch?v=Q6EBV7tTz0U
+
 =======
 ## Features
 * Updates in real time
@@ -22,6 +25,11 @@ https://github.com/KhronosGroup/SPIRV-Cross.
 
 ## Usage
 Simply open any HLSL file and execute "Preview HLSL" command.
+#### Built-in variables
+These variables values will be automatically updated every frame. They still need to be declared to be used.
+* `float iTime`
+* `float2 iResolution`
+
 
 ## Limitations
 SPIRV-Cross limitations:
