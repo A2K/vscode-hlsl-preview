@@ -1,8 +1,8 @@
 HLSL preview for VSCode
-
-Video: https://www.youtube.com/watch?v=Q6EBV7tTz0U
-
 =======
+
+## Video: https://www.youtube.com/watch?v=Q6EBV7tTz0U
+
 ## Features
 * Updates in real time
 * Configurable entry point 
