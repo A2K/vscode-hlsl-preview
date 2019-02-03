@@ -497,7 +497,7 @@ class Settings {
         let div = this.div;
 
         if (this.uniformsDesc) {
-            let table = this.buildTable(uniformsDesc);
+            let table = this.buildTable(this.uniformsDesc);
             if (this.hidden) {
                 table.hide();
             }
@@ -697,15 +697,23 @@ class Settings {
 
         function resize(arr, size) {
             if (typeof(arr) === 'undefined' || arr == null) arr = [];
-            if (!arr.isArray || !arr.isArray()) {
+
+            if ((arr instanceof THREE.Vector2) || (arr instanceof THREE.Vector3) || (arr instanceof THREE.Vector4)) {
+                let jsarr = [];
+                arr.toArray(jsarr);
+                arr = jsarr;
+            }
+            
+            if (!(arr instanceof Array)) {
                 try {
-                    arr = Arrys.from(arr);
+                    arr = Array.from(arr);
                 } catch(error) {
                     arr = [];
                 }
-            } else {
-                arr = Arrys.from(arr);
             }
+
+            arr = arr.map(e => parseFloat(e));
+
             var delta = arr.length - size;
         
             while (delta-- > 0) { arr.pop(); }

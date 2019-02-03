@@ -126,6 +126,9 @@ export default class HLSLCompiler {
                 args.push(ifdef);
             });
 
+            args.push("-D");
+            args.push("VSCODE_HLSL_PREVIEW");
+
             args.push('-T');
             args.push(profile);
 
