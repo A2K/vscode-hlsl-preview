@@ -2,7 +2,7 @@
 	"name": "hlsl-preview",
 	"displayName": "HLSL preview",
 	"description": "Real time preview for HLSL shaders",
-	"version": "0.2.9",
+	"version": "0.3.2",
 	"publisher": "A2K",
 	"bugs": {
 		"url": "https://github.com/A2K/vscode-hlsl-preview/issues"
@@ -35,6 +35,8 @@
 		"test": "npm run compile && node ./node_modules/vscode/bin/test"
 	},
 	"dependencies": {
+		"@types/mime-types": "^2.1.0",
+		"mime-types": "^2.1.21",
 		"@types/tempfile": "^2.0.0",
 		"tempfile": "^2.0.0"
 	},
@@ -47,7 +49,7 @@
 		"@types/tempfile": "^2.0.0",
 		"tempfile": "^2.0.0"
 	},
-	"contributes": {		
+	"contributes": {
 		"commands": [
 			{
 				"command": "hlsl.preview.start",
@@ -83,17 +85,22 @@
 					"description": "Trigger delay and max update frequency."
 				},
 				"hlsl.preview.includeDirs": {
-					"type": [ "string", "array" ],
-					"items": { 
+					"type": [
+						"string",
+						"array"
+					],
+					"items": {
 						"type": "string"
 					},
-					"default": [
-					],
+					"default": [],
 					"description": "List of include directories."
 				},
 				"hlsl.preview.dxcDefaultArgs": {
-					"type": [ "string", "array" ],
-					"items": { 
+					"type": [
+						"string",
+						"array"
+					],
+					"items": {
 						"type": "string"
 					},
 					"default": [
@@ -104,8 +111,11 @@
 					"description": "The dxt executable default arguments."
 				},
 				"hlsl.preview.spirvcrossDefaultArgs": {
-					"type": [ "string", "array" ],
-					"items": { 
+					"type": [
+						"string",
+						"array"
+					],
+					"items": {
 						"type": "string"
 					},
 					"default": [
@@ -115,7 +125,6 @@
 					],
 					"description": "The SPIRV-Cross executable default arguments."
 				}
-				
 			}
 		}
 	}

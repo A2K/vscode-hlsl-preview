@@ -57,7 +57,9 @@ function UpdateMaterial()
 
     Object.keys(newUniforms).forEach(key => {
         if (key === '_Globals') return;
-        window.uniforms[key] = newUniforms[key];
+        if ((!(key in window.uniforms)) || window.uniforms[key].value !== newUniforms[key].value) {
+            window.uniforms[key] = newUniforms[key];
+        }
     });
     
     Object.keys(window.uniforms).forEach(key => {
@@ -86,11 +88,21 @@ function UpdateMaterial()
     
     if (window.material) 
     {
+        if (window.material.fragmentShader !== window.fragmentShaderCode) {
+            window.material.fragmentShader = window.fragmentShaderCode;
+            window.material.needsUpdate = true;
+        }
+        if (window.material.vertexShader !== window.vertexShaderCode) {
+            window.material.vertexShader = window.vertexShaderCode;
+            window.material.needsUpdate = true;
+        }
+        /*
         if ((window.material.fragmentShader !== window.fragmentShaderCode) 
             || (window.material.vertexShader !== window.vertexShaderCode))
         {
             recreateMaterial = true;
         }
+        */
     } else {
         recreateMaterial = true;
     }
@@ -106,7 +118,6 @@ function UpdateMaterial()
             window.mesh.material = material;
         }
     }
-
 }
 
 function LoadTexture(url, settings, filename) {
@@ -141,6 +152,67 @@ window.vertexShaderCode = "";
 window.uniformsDesc = {};
 window.texturesDesc = {};
 
+
+class FileOpener {
+
+    constructor(vscode)
+    {
+        this.vscode = vscode;
+
+        this.lastOpId = 0;
+        this.pendingOps = {};
+    }
+
+    open() {
+        return new Promise(((resolve, reject) => {
+            let opId = this.lastOpId++;
+            this.pendingOps[opId] = { 
+                resolve: resolve,
+                reject: reject,
+                time: new Date().getTime()
+            };
+            this.vscode.postMessage({
+                type: "openFile",
+                data: {
+                    opId: opId
+                }
+            });
+        }).bind(this));
+    }
+
+    load(filename) {
+        return new Promise(((resolve, reject) => {
+            let opId = this.lastOpId++;
+            this.pendingOps[opId] = { 
+                resolve: resolve,
+                reject: reject,
+                time: new Date().getTime()
+            };
+            this.vscode.postMessage({
+                type: "loadFile",
+                data: {
+                    filename: filename,
+                    opId: opId
+                }
+            });
+        }).bind(this));
+    }
+
+    onFileResult(data) {
+
+        let id = data.opId;
+
+        if (!this.pendingOps[id]) {
+            console.error('onOpenFile got unexpected op id: ' + id);
+            return;
+        }
+
+        this.pendingOps[id].resolve(data);
+
+        delete this.pendingOps[id];
+    }
+
+}
 
 class TextureSettings {
 
@@ -452,7 +524,7 @@ class Settings {
     constructor() {
 
         this.vscode = acquireVsCodeApi();
-
+        this.fileOpener = new FileOpener(this.vscode);
         this.uniforms = {};
         this.uniformsValues = {};
         this.uniformsDesc = {};
@@ -825,50 +897,37 @@ class Settings {
             
             let file = $(`<input type=file hidden>`)
                 .addClass('textureInput');
-            
-            if (value) {
-                if (value.data) {            
-                    file.data('textureData', value.data);        
 
-                    if (value.texture) {
-                        file.data('texture', value.texture);
-                    } else {
-                        file.data('texture', LoadTexture(value.data, value.settings));
-                    }
-                    if (value.filename) {
-                        file.data('filename', value.filename);
-                        file.attr('value', value.filename);
-                    }
-                }
-            }
-
-            file.on('change input keyup', ((file, onUpdate, settings) => {
-                if (!file[0].files) { return undefined; }
-
-                var fileObject = file[0].files[0];
-
-                file.data('filename', fileObject.name);
-
-                var fr = new FileReader();
                 
-                fr.onload = ((fr, onUpdate, settings) => {                    
-                    file.fileDataURL = fr.result;                    
-                    file.data('textureData', fr.result);
-                    file.data('texture', LoadTexture(fr.result, settings, fileObject.name));
-                    if (file.data('onFileSelected')) file.data('onFileSelected')(fileObject.name);
-                    onUpdate();        
-                }).bind(this, fr, onUpdate, settings);
-
-                fr.readAsDataURL(fileObject);
-            }).bind(this, file, onUpdate, value.settings));
-
-            
             let textureSettingsSettings = value ? (value.settings ? value.settings : DefaultTextureSettings) : DefaultTextureSettings;
             let textureSettings = this.getTextureSettings(name, file, onUpdate, textureSettingsSettings);
             
             div.data('textureSettings', textureSettings);
             cell1.append(textureSettings.getActivationButton());
             
+            if (value) {                
+                if (value.filename) {
+                    file.data('filename', value.filename);
+                }
+
+                if (value.value) {
+                    file.data('texture', value.value);
+                } else if (value.filename) {
+                    this.fileOpener.load(value.filename).then(((file, filename, onUpdate, data) => {
+                        let dataUri = data.data;    
+                        let texture = LoadTexture(dataUri, textureSettings.getSettings(), filename);
+                        value.value = texture;                        
+                        file.data('texture', texture);                            
+                        if (file.data('onFileSelected')) file.data('onFileSelected')(filename);
+                        onUpdate();
+                    }).bind(this, file, value.filename, onUpdate));
+                }
+            }
+            
+            function getBaseName(path) {
+                return path.split(/[/\\]/).pop();
+            }
+
             {
                 let display = $('<div>');
                 display.addClass('displayFileInput');
@@ -881,16 +940,21 @@ class Settings {
                 let displayFilename = $('<div>');
                 displayFilename.addClass('displayFilename');
                 if (value.filename) {
-                    displayFilename.text(value.filename);
+                    displayFilename.text(getBaseName(value.filename));
                 }
                 file.data('onFileSelected', ((displayFilename, filename) => {
-                    displayFilename.text(filename);
+                    displayFilename.text(getBaseName(filename));
                 }).bind(this, displayFilename));
                 display.append(displayFilename);
 
-                display.on('click', ((file, e) => {
-                    file.click();
-                }).bind(this, file));
+                display.on('click', ((onUpdate, file, e) => {
+                    this.fileOpener.open().then(((onUpdate, file, data) => {
+                        file.data('filename', data.filename);                        
+                        file.data('texture', LoadTexture(data.data, textureSettings.getSettings(), data.filename));
+                        if (file.data('onFileSelected')) file.data('onFileSelected')(data.filename);
+                        onUpdate();
+                    }).bind(this, onUpdate, file));
+                }).bind(this, onUpdate, file));
 
                 cell2.append(display);
             }
@@ -900,7 +964,6 @@ class Settings {
             div.data('getValue', ((file, div) => {
                 return { 
                     texture: file.data('texture'), 
-                    data: file.data('textureData'), 
                     filename: file.data('filename'),
                     settings: div.data('textureSettings').getSettings()
                 };
@@ -922,7 +985,7 @@ class Settings {
             {
                 var data = struct.data('getValue')();
                 //if (data.texture) data.texture = Object.assign(data.texture, data.settings);
-                result[key] = { type: 't', value: data.texture, data: data.data, settings: data.settings, filename: data.filename };
+                result[key] = { type: 't', value: data.texture, settings: data.settings, filename: data.filename };
             }
             else
             {
@@ -949,6 +1012,7 @@ class Settings {
     }
 
     onSettingsUpdate() {
+
         this.buildUniforms();
         
         var serializedUniforms = {};
@@ -956,14 +1020,13 @@ class Settings {
             if (this.uniformsValues[key]['type'] === 't') {
                 serializedUniforms[key] = { 
                     type: 't',
-                    data: this.uniformsValues[key]['data'], 
                     filename: this.uniformsValues[key]['filename'],
                     settings: this.uniformsValues[key]['settings']
                 };
             } else {
                 serializedUniforms[key] = this.uniformsValues[key];
             }
-        })
+        });
 
         this.vscode.postMessage({
             type: "updateUniforms",
@@ -1084,66 +1147,68 @@ function CreateUniformsFromDesc(uniformsDesc, texturesDesc, values)
 
 window.addEventListener("message", event => {
     
-    if (0 === event.data.command.localeCompare('updateFragmentShader'))
-    {
-        window.fragmentShaderCode = event.data.data.code;
-        window.uniformsDesc = event.data.data.uniforms;
-        window.texturesDesc = event.data.data.textures;
-        
-        UpdateMaterial();
+    switch(event.data.command) {
+        case 'updateFragmentShader':    
+            window.fragmentShaderCode = event.data.data.code;
+            window.uniformsDesc = event.data.data.uniforms;
+            window.texturesDesc = event.data.data.textures;
 
-        if (window.settings) {
-            window.settings.update(window.uniformsDesc);
-        }
-    }
-    else if (0 === event.data.command.localeCompare('updateVertexShader'))
-    {      
-        vertexShaderCode = event.data.data.code;
-
-        UpdateMaterial();
-    }
-    else if (0 === event.data.command.localeCompare('showErrorMessage'))
-    {
-        if (window.settings) {
-            window.settings.setErrorMessage(event.data.data);        
-        }
-    }
-    else if (0 === event.data.command.localeCompare('loadUniforms'))
-    {
-        if (window.settings) {
-            var deserialized = {};
-            
-            Object.keys(event.data.data).forEach(key => {
-                let field = event.data.data[key];
-
-                if (field['type'] === 't') {
-                    deserialized[key] = {
-                        type: 't',
-                        value: LoadTexture(field.data, field.settings),
-                        data: field.data,
-                        settings: field.settings,
-                        filename: field.filename
-                    };
-                    
-                } else {
-                    deserialized[key] = field;
-                }
-            });
-            window.settings.setUniformsValues(deserialized);
-
-            if (window.mesh) {
-                UpdateMaterial();
-            } else {
-                console.log('no mesh created yet');
+            if (window.settings) {
+                window.settings.update(window.uniformsDesc);
             }
-        } else {
-            console.error('window.settings not initialized yet');
-        }
-    }
-    else if (0 === event.data.command.localeCompare('updateIfdefs'))
-    {
-        window.ifdefs = event.data.data.ifdefs;
-        window.settings.setEnabledIfdefs(event.data.data.enabledIfdefs);
+            
+            UpdateMaterial();
+        break;
+        case 'updateVertexShader':    
+            vertexShaderCode = event.data.data.code;
+            UpdateMaterial();
+        break;
+        case 'showErrorMessage':    
+            if (window.settings) {
+                window.settings.setErrorMessage(event.data.data);        
+            }
+        break;
+        case 'loadUniforms':    
+            if (window.settings) {
+                var deserialized = {};
+                
+                Object.keys(event.data.data).forEach(key => {
+                    let field = event.data.data[key];
+
+                    if (field['type'] === 't') {
+                        deserialized[key] = {
+                            type: 't',
+                            settings: field.settings,
+                            filename: field.filename
+                        };
+                        
+                    } else {
+                        deserialized[key] = field;
+                    }
+                });
+                window.settings.setUniformsValues(deserialized);
+
+                if (window.mesh) {
+                    UpdateMaterial();
+                } else {
+                    console.log('no mesh created yet');
+                }
+            } else {
+                console.error('window.settings not initialized yet');
+            }
+        break;
+        case 'updateIfdefs':    
+            window.ifdefs = event.data.data.ifdefs;
+            window.settings.setEnabledIfdefs(event.data.data.enabledIfdefs);
+        break;
+        case 'openFile':    
+            window.settings.fileOpener.onFileResult(event.data.data);
+        break;
+        case 'loadFile':   
+            window.settings.fileOpener.onFileResult(event.data.data);
+        break;
+        default:
+            console.error('UNKNOWN MESSAGE RECEIVED: ' + JSON.stringify(event));
     }
 });
 

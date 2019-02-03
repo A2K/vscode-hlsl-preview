@@ -320,6 +320,7 @@ div.displayFileInput:hover {
 div.displayOpen {
     display: inline-block;
     padding-right: 5px;
+    padding-bottom: 2px;
 }
 
 div.displayFilename {
@@ -327,7 +328,9 @@ div.displayFilename {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 75px;
+    max-width: 100px;
+    position: relative;
+    top: 3px;
 }
 
 table.settings {

@@ -7,6 +7,32 @@ import { GLSLCode } from './glsl';
 
 import { ThrottledDelayer } from './async';
 
+import * as mime from 'mime-types';
+
+import * as fs from 'fs';
+
+
+function LoadFileBase64(filepath: string): Promise<string> {
+	return new Promise<string>((resolve, reject) => {
+		fs.readFile(filepath, { encoding: 'base64' }, (err, data) => {
+			if (err) { 
+				reject(err);
+			} else {
+				resolve(data);
+			}
+		});
+	});
+}
+
+function LoadFileAsDataUri(filepath: string): Promise<string> {
+	return new Promise<string>((resolve, reject) => {
+		LoadFileBase64(filepath)
+		.then((data: string) => {
+			resolve('data:' + mime.lookup(filepath) + ';base64,' + data);
+		})
+		.catch(reject);
+	});
+}
 
 const InternalParameters = [ 'iTime', 'iResolution' ];
 
@@ -226,6 +252,51 @@ class HLSLPreview
 								this.UpdateShader();
 							}
 						}
+						break;
+					case 'openFile':
+						vscode.window.showOpenDialog({
+							canSelectFiles: true,
+							canSelectFolders: false,
+							canSelectMany: false,
+							filters: {
+								Images: ['png', 'jpg', 'tga', 'bmp', 'gif', 'dds', 'tif']
+							}
+						}).then(((opId: number, uris: vscode.Uri[] | undefined) => {
+							if (!uris) {
+								console.error('showOpenDialog failed!');
+								return;
+							}
+
+							let filename = uris[0].fsPath;
+							LoadFileAsDataUri(filename).then(((opId:number, dataUri:string) => {
+								if (this.currentPanel) {
+									this.currentPanel.webview.postMessage({
+										command: 'openFile',
+										data: {
+											filename: filename,
+											opId: opId,
+											data: dataUri
+										}
+									});
+								}
+							}).bind(this, opId));
+						}).bind(this, e.data.opId));
+						break;						
+					case 'loadFile':
+						let opId = e.data.opId;
+						let filename = e.data.filename;
+						LoadFileAsDataUri(filename).then(((opId:number, filename: string, dataUri:string) => {
+							if (this.currentPanel) {
+								this.currentPanel.webview.postMessage({
+									command: 'loadFile',
+									data: {
+										filename: filename,
+										opId: opId,
+										data: dataUri
+									}
+								});
+							}
+						}).bind(this, opId, filename));
 						break;
 				}
 			  }).bind(this));
