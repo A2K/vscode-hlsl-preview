@@ -251,6 +251,8 @@ class HLSLPreview
 								this.context.workspaceState.update(key, e.data);
 								this.UpdateShader();
 							}
+							
+							vscode.commands.executeCommand('hlsl.linter.setifdefs', JSON.stringify(e.data));
 						}
 						break;
 					case 'openFile':
