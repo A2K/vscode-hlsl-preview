@@ -590,6 +590,75 @@ class Settings {
         this.setErrorMessage(this.errorMessage);
        
     }
+    
+    formatErrorMessage(message) {
+        let text = $('<div>');
+        text.addClass('errorMesageContent');
+        message.split('\n')
+        .filter(line => {
+            let re = /^(.*):(\d+):(\d+): (warning|error): (.*)/;
+
+            let match = re.exec(line);
+            if (match) {
+                return true;
+            }
+            return false;
+            let emptyre = /^\s*\^\~*\s*$/;
+            if (emptyre.exec(line)) 
+            {
+                return false;
+            } else { 
+                return true;
+            }
+        })
+        .map((line => {
+            let div = $('<div>');
+            div.addClass('errorMessageLine');
+            let parts = line.split(':');
+
+            let re = /^(.*):(\d+):(\d+): (warning|error): (.*)/;
+
+            let match = re.exec(line);
+            if (match) {
+                div.addClass('mainMessage');
+                let filename = match[1];
+                let line = parseInt(match[2]);
+                let column = parseInt(match[3]);
+                let level = match[4];
+                let message = match[5];
+
+                let location = $('<div>').addClass('errorLocation');
+                div.append(
+                    location
+                    .append($('<div>').addClass('filename').text(filename))
+                    .append($('<div>').addClass('line').text(line))
+                    .append($('<div>').addClass('column').text(column))
+                );
+
+                location.on('click', ((event) => {
+                    this.vscode.postMessage({
+                        type: 'goto',
+                        data: {
+                            filename: filename,
+                            line: line,
+                            column: column
+                        }
+                    })
+                }).bind(this));
+
+                div.append($('<div>').addClass('level').addClass(level).text(level));
+                div.append($('<div>').addClass('message').text(message));
+
+            } else {
+                div.text(line);
+            }
+
+            return div;
+        }).bind(this)).forEach(div => {
+            text.append(div);
+        });
+        return text;
+    }
 
     setErrorMessage(error) {
         
@@ -601,7 +670,9 @@ class Settings {
             return;
         } 
 
-        this.error.setText(error);
+        this.error.html('');
+        this.error.append(this.formatErrorMessage(error));
+
         this.error.show();
     }
 

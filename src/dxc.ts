@@ -193,7 +193,8 @@ export default class HLSLCompiler {
                     if (e === 0) {
                         resolve(filenameSPIRV);
                     } else {
-                        reject(this.processErrorMessage(textDocument.fileName, filename, stderr, -addedLines));
+                        let basename = textDocument.fileName.split(/[/\\]/).pop() || textDocument.fileName;
+                        reject(this.processErrorMessage(basename, filename, stderr, -addedLines));
                     }
                 });
 

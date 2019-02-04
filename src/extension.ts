@@ -117,8 +117,24 @@ namespace RunTrigger {
     };
 }
 
+function getDecorationTypeFromConfig() {
+	//const config = vscode.workspace.getConfiguration("highlightLine")
+	const borderColor = 'red';
+	const borderWidth = '1px';
+	const borderStyle = 'solid';
+	const decorationType = vscode.window.createTextEditorDecorationType({
+		isWholeLine: true,
+		borderWidth: `0 0 ${borderWidth} 0`,
+		borderStyle: `${borderStyle}`, //TODO: file bug, this shouldn't throw a lint error.
+		borderColor
+	})
+	return decorationType;
+}
+
 class HLSLPreview
 {
+	private decorationType = getDecorationTypeFromConfig();
+
 	private currentPanel: vscode.WebviewPanel | undefined = undefined;
 
 	private currentDocument: vscode.TextDocument | undefined = undefined;
@@ -230,7 +246,7 @@ class HLSLPreview
 							let key = 'uniforms_' + this.currentDocument.uri.toString();
 							this.context.workspaceState.update(key, e.data);
 						}
-						break;
+					break;
 					case 'updateEnabledIfdefs':
 						if (this.currentDocument) {
 							let key = 'ifdefs_' + this.currentDocument.uri.toString();
@@ -254,7 +270,7 @@ class HLSLPreview
 							
 							vscode.commands.executeCommand('hlsl.linter.setifdefs', JSON.stringify(e.data));
 						}
-						break;
+					break;
 					case 'openFile':
 						vscode.window.showOpenDialog({
 							canSelectFiles: true,
@@ -283,7 +299,7 @@ class HLSLPreview
 								}
 							}).bind(this, opId));
 						}).bind(this, e.data.opId));
-						break;						
+					break;						
 					case 'loadFile':
 						let opId = e.data.opId;
 						let filename = e.data.filename;
@@ -299,7 +315,24 @@ class HLSLPreview
 								});
 							}
 						}).bind(this, opId, filename));
-						break;
+					break;
+					case 'goto':
+						let lineNumber = parseInt(e.data.line);
+						let columnNumber = parseInt(e.data.column);
+						if (this.currentDocument) {
+							vscode.window.visibleTextEditors.forEach(editor => {
+								if (editor.document === this.currentDocument) {
+									let range = editor.document.lineAt(lineNumber-1).range;
+									//editor.selection = new vscode.Selection(range.start, range.end);
+									editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+									
+									let cursor = editor.selection.active;
+									let pos = cursor.with(lineNumber - 1, columnNumber - 1);
+									editor.selection = new vscode.Selection(pos, pos);
+								}
+							});
+						}
+					break;
 				}
 			  }).bind(this));
 

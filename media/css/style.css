@@ -340,3 +340,51 @@ table.settings {
 input.ifdefCheckbox {
     width: fit-content;
 }
+
+div.errorMessageLine.mainMessage {
+    font-weight: bolder;
+    color: rgba(225, 225, 225, 0.9);
+}
+
+div.errorMessage div.errorMessageLine div {
+    display: inline;
+}
+
+div.errorMessage div.filename::after,
+div.errorMessage div.line::after,
+div.errorMessage div.column::after,
+div.errorMessage div.error::after { 
+    content: ":";
+    color: rgba(255, 255, 255, 0.5);
+}
+
+div.errorMessage div.error::before { 
+    content: " ";
+}
+
+div.errorMessage div.errorLocation { 
+    cursor: pointer;
+}
+div.errorMessage div.errorLocation:hover { 
+    color: rgba(225, 225, 255, 1.0);
+
+}
+
+div.errorMessage div.message::before { 
+    content: " ";
+}
+
+div.errorMessage div.level.error {
+    color:rgba(255, 125, 125, 0.9);
+}
+
+div.errorMessage div.level.warning {
+    color:rgba(195, 195, 0, 0.9);
+}
+
+div.errorMessage {
+    max-height: 50%;
+    width: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
