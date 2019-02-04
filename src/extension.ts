@@ -117,24 +117,8 @@ namespace RunTrigger {
     };
 }
 
-function getDecorationTypeFromConfig() {
-	//const config = vscode.workspace.getConfiguration("highlightLine")
-	const borderColor = 'red';
-	const borderWidth = '1px';
-	const borderStyle = 'solid';
-	const decorationType = vscode.window.createTextEditorDecorationType({
-		isWholeLine: true,
-		borderWidth: `0 0 ${borderWidth} 0`,
-		borderStyle: `${borderStyle}`, //TODO: file bug, this shouldn't throw a lint error.
-		borderColor
-	})
-	return decorationType;
-}
-
 class HLSLPreview
 {
-	private decorationType = getDecorationTypeFromConfig();
-
 	private currentPanel: vscode.WebviewPanel | undefined = undefined;
 
 	private currentDocument: vscode.TextDocument | undefined = undefined;
