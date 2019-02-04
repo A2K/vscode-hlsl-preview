@@ -19,10 +19,12 @@ export default class HLSLtoGLSLRecompiler {
             this.hlsl.CompileToSPIRV(textDocument, entryPointName, enabledIfdefs).then((filename) => {
 
                 if (filename) {
-                    this.glsl.Process(filename).then((glslCode) => {
+                    this.glsl.Process(filename)
+                    .then((glslCode) => {
                         fs.unlink(filename, () => {});
                         resolve(glslCode);
-                    });
+                    })
+                    .catch(reject);
                 } else {
                     reject("no SPIRV file generated");
                 }

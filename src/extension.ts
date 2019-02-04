@@ -48,6 +48,9 @@ function GetIfdefs(text: string): string[]
 	var m;
 	while (m = re.exec(nocomments)) {
 		let name = m[1];
+		if (name === 'VSCODE_HLSL_PREVIEW') {
+			continue;
+		}
 		if (ifdefs.indexOf(name) < 0) {
 			ifdefs.push(name);
 		}
@@ -91,6 +94,7 @@ function getWebviewContent(context: vscode.ExtensionContext): string
 		</script>
 		<body>
 			<div id="content"></div>
+			<div id="errorFrame"></div>
 			<script src="${getMediaPath(context, "scripts/main.js")}" language="javascript"></script>
 		</body>
 	</html>
@@ -387,7 +391,10 @@ class HLSLPreview
 	}
 
 	public UpdateShader(): void {
-		new ThrottledDelayer<GLSLCode>(100).trigger(() => this.DoUpdateShader());
+		new ThrottledDelayer<GLSLCode>(100).trigger(() => this.DoUpdateShader()
+		.catch(err => {
+			return new GLSLCode("", {});
+		}));
 	}
 
 	private DoUpdateShader(): Promise<GLSLCode> {
@@ -425,7 +432,8 @@ class HLSLPreview
 			}
 			
 			
-			this.recompiler.HLSL2GLSL(this.currentDocument, this.entryPointName, enabledIfdefs).then((glslCode) => {
+			this.recompiler.HLSL2GLSL(this.currentDocument, this.entryPointName, enabledIfdefs)
+			.then((glslCode) => {
 				if (this.currentPanel) {				
 					this.currentPanel.webview.postMessage({
 						command: 'updateFragmentShader',
@@ -441,7 +449,8 @@ class HLSLPreview
 					});
 				}			
 				resolve(glslCode);
-			}).catch((reason) => {
+			})
+			.catch(((reject:any, reason:any) => {
 				if (this.currentPanel) {
 					this.currentPanel.webview.postMessage({
 						command: 'showErrorMessage',
@@ -449,7 +458,7 @@ class HLSLPreview
 					});
 				}
 				reject(reason);
-			});	
+			}).bind(this, reject));	
 		});
 
 	}

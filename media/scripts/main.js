@@ -664,26 +664,23 @@ class Settings {
         
         this.errorMessage = error;
 
+        this.error.html('');
+
         if (!error) {
             this.error.hide();
-            this.error.setText('');
+            $('#errorFrame').hide();
             return;
         } 
-
-        this.error.html('');
+        
         this.error.append(this.formatErrorMessage(error));
-
         this.error.show();
+
+        $('#errorFrame').show();
     }
 
     makeErrorView() {
         var error = $('<div>')
             .addClass('errorMessage');
-
-        error.setText = ((error, text) => {
-            error.text(text);
-        }).bind(this, error);
-
         return error;
     }
 
