@@ -408,3 +408,19 @@ div.errorMessage {
         transparent 45px
       );
 }
+
+.floatScrollMarker {
+    width: 100px;
+    height: 100px;
+    position: fixed;
+    background: transparent;
+    color: rgba(225, 225, 225, 0.9);
+    cursor: w-resize;
+}
+.floatScrollMarker p {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    text-shadow: 2px 2px #000000;
+
+}

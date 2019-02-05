@@ -532,6 +532,7 @@ class Settings {
         this.initialized = false;
         this.hidden = false;
 
+
         if (!this.button) {
             this.button = this.makeHideButton();
         }
@@ -547,6 +548,7 @@ class Settings {
     init()
     {
         this.div = $('<div id=settings>');
+
         $('body').append(this.div);
 
         this.initialized = true;
@@ -589,6 +591,14 @@ class Settings {
 
         this.setErrorMessage(this.errorMessage);
        
+    }
+
+    makeHeader() {
+        let header = $('<div>');
+        header.addClass('settingsHeader');
+        header.text('Settings');
+
+        return header;
     }
     
     formatErrorMessage(message) {
@@ -832,6 +842,107 @@ class Settings {
         function makeFloatInput(value) {
             value = parseFloat(value) || 0.0;
             let input = $(`<input type=number step=0.001 value=${value} pattern="^([-+]?\d*\.?\d+)(?:[eE]([-+]?\d+))?$">`);
+
+            var marker;
+            
+            
+            
+            input.on('mousedown', (event) => {
+            
+                var startValue = parseFloat(input.val());
+
+                var mouseDownTime = new Date().getTime();
+                
+                var startPos = new THREE.Vector2(event.clientX, event.clientY);
+
+                marker = $('<div>')
+                .addClass('floatScrollMarker')
+                .css({
+                    left: (event.clientX - 50) + 'px',
+                    top: (event.clientY - 50) + 'px',
+                    'z-index': window.maxZIndex++,
+                    opacity: 0,
+                    cursor: 'default'
+                });
+                
+                let text = $('<p>')
+                .addClass('floatScrollMarkerText')
+                .text('1.00x');
+
+                marker.append(text);
+
+                document.onmousemove = (event) => {    
+                    
+                    marker.css({
+                        left: (event.clientX - 50) + 'px',
+                        top: (event.clientY - 50) + 'px',
+                        opacity: 1,
+                        cursor: 'w-resize'
+                    });
+
+                    if (new Date().getTime() - mouseDownTime < 200) {
+                        return true;
+                    }
+
+                    let pos = new THREE.Vector2(event.clientX, event.clientY);
+                    
+                    let speed = Math.exp(Math.max(1.0, Math.abs(startPos.y - pos.y)) * 0.01);
+
+                    if (event.shiftKey) {
+                        speed = 1.0 / Math.abs(speed);
+                    }                    
+                    
+                    if (speed > 0.01) {
+                        text.text(`${speed.toFixed(2)}x`);
+                    }
+                    else 
+                    {
+                        text.text(`${speed.toPrecision(4)}x`);
+                    }
+
+                    let delta = (pos.x - startPos.x) * speed;
+
+                    input.val(startValue + delta * 0.01);
+                    input.change();
+
+                    event.preventDefault();
+                    return false;
+                };
+
+                let cleanup = () => {
+                    document.onmouseup = null;
+                    document.onmousemove = null;
+                    document.onkeypress = null;
+                    document.oncontextmenu = null;
+                    marker.remove();
+                };
+
+                document.onmouseup = cleanup;
+                document.onkeypress = cleanup;
+                document.oncontextmenu = () => {
+                    input.val(startValue);
+                    cleanup;
+                }
+
+                /*
+                marker.on('keyup contextmenu mousedown', (event) => {
+                    document.onmouseup = null;
+                    document.onmousemove = null;
+                    input.val(startValue);
+                    marker.remove();
+                    return false;
+                });
+
+                marker.on('mouseup', (event) => {
+                    marker.remove();
+                    return false;
+                });
+                */
+
+                $('body').append(marker);
+
+                return true;
+            });
             return input;
         }
 
