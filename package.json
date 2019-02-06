@@ -2,7 +2,7 @@
 	"name": "hlsl-preview",
 	"displayName": "HLSL preview",
 	"description": "Real time preview for HLSL shaders",
-	"version": "0.4.5",
+	"version": "0.5.0",
 	"publisher": "A2K",
 	"bugs": {
 		"url": "https://github.com/A2K/vscode-hlsl-preview/issues"
@@ -105,8 +105,10 @@
 					},
 					"default": [
 						"-Od",
-						"-Ges",
-						"-spirv"
+						"-spirv",
+						"-fspv-reflect",
+						"-Vd",
+						"-Zi"
 					],
 					"description": "The dxt executable default arguments."
 				},

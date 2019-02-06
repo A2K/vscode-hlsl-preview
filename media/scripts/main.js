@@ -1,10 +1,12 @@
+
+
 function log()
 {
     var args = [];
-    for(var i =0; i < arguments.length; ++i) args.push(arguments[i]);
+    for(var i = 0; i < arguments.length; ++i) args.push(arguments[i]);
     console.log((args.map(arg => {
         if (typeof(arg) === 'object') return JSON.stringify(arg);
-        return arg;        
+        return arg;
     })).join(' '));
 }
 
@@ -25,15 +27,15 @@ window.startTime = Date.now();
 window.maxZIndex = 100;
 
 window.uniforms = {
-    '_Globals': { 
+    '_Globals': {
         value: {
             iTime: 0,
             iResolution: new THREE.Vector2(window.innerWidth, window.innerHeight)
-        } 
+        }
     }
 }
 
-    
+
 window.TextureLoader = new THREE.TextureLoader();
 
 const DefaultTextureSettings = {
@@ -47,7 +49,7 @@ const DefaultTextureSettings = {
 function UpdateMaterial()
 {
     if (!window.settings) {
-        console.error('UpdateMaterial: window.settings not initialized');   
+        console.error('UpdateMaterial: window.settings not initialized');
         return;
     }
 
@@ -61,7 +63,7 @@ function UpdateMaterial()
             window.uniforms[key] = newUniforms[key];
         }
     });
-    
+
     Object.keys(window.uniforms).forEach(key => {
         if (key === '_Globals') return;
         if (!(key in newUniforms)) {
@@ -77,16 +79,16 @@ function UpdateMaterial()
                 window.uniforms['_Globals'].value[key] = newUniforms['_Globals'].value[key];
             }).bind(this, window));
         }
-    
+
         Object.keys(window.uniforms['_Globals'].value).forEach(key => {
-            if (InternalParameters.indexOf(key) >= 0) return; 
+            if (InternalParameters.indexOf(key) >= 0) return;
             if (!(key in newUniforms['_Globals'].value)) {
                 delete window.uniforms['_Globals'].value[key];
             }
         });
     }
-    
-    if (window.material) 
+
+    if (window.material)
     {
         if (window.material.fragmentShader !== window.fragmentShaderCode) {
             window.material.fragmentShader = window.fragmentShaderCode;
@@ -96,17 +98,10 @@ function UpdateMaterial()
             window.material.vertexShader = window.vertexShaderCode;
             window.material.needsUpdate = true;
         }
-        /*
-        if ((window.material.fragmentShader !== window.fragmentShaderCode) 
-            || (window.material.vertexShader !== window.vertexShaderCode))
-        {
-            recreateMaterial = true;
-        }
-        */
     } else {
         recreateMaterial = true;
     }
-    if (recreateMaterial) 
+    if (recreateMaterial)
     {
         window.material = new THREE.ShaderMaterial({
             uniforms: window.uniforms,
@@ -132,9 +127,25 @@ function LoadTexture(url, settings, filename) {
         });
     }
 
-    let texture = window.TextureLoader.load(url, (q) => {}, (err) => {
+    var texture;
+
+    let errorCallback = (err) => {
         console.error('data url loading error: ' + err);
-    });
+    }
+
+    let ext = (filename.split('.') || ['']).pop().toLowerCase();
+
+    switch (ext)
+    {
+        case 'tga':
+            texture = new THREE.TGALoader().load(url, (q) => {}, errorCallback);
+        break;
+        case 'dds':
+            texture = new THREE.DDSLoader().load(url, (q) => {}, errorCallback);
+        break;
+        default:
+            texture = window.TextureLoader.load(url, (q) => {}, errorCallback);
+    }
 
     if (filename) {
         texture.sourceFile = filename;
@@ -145,7 +156,7 @@ function LoadTexture(url, settings, filename) {
     return texture;
 }
 
-const DefaultTexture = LoadTexture($('#defaultTexture').attr('src'), DefaultTextureSettings);
+const DefaultTexture = LoadTexture($('#defaultTexture').attr('src'), DefaultTextureSettings, 'default');
 
 window.fragmentShaderCode = "";
 window.vertexShaderCode = "";
@@ -166,7 +177,7 @@ class FileOpener {
     open() {
         return new Promise(((resolve, reject) => {
             let opId = this.lastOpId++;
-            this.pendingOps[opId] = { 
+            this.pendingOps[opId] = {
                 resolve: resolve,
                 reject: reject,
                 time: new Date().getTime()
@@ -183,7 +194,7 @@ class FileOpener {
     load(filename) {
         return new Promise(((resolve, reject) => {
             let opId = this.lastOpId++;
-            this.pendingOps[opId] = { 
+            this.pendingOps[opId] = {
                 resolve: resolve,
                 reject: reject,
                 time: new Date().getTime()
@@ -216,7 +227,7 @@ class FileOpener {
 
 class TextureSettings {
 
-    constructor(file, onUpdate, textureName, settings) 
+    constructor(file, onUpdate, textureName, settings)
     {
         this.file = file;
         this.onUpdate = onUpdate;
@@ -236,14 +247,19 @@ class TextureSettings {
             pos3 = e.clientX;
             pos4 = e.clientY;
 
+            let transitionOrigValue = this.div.css('transition');
+
             document.onmouseup = () => {
+                this.div.css({
+                    transition: transitionOrigValue,
+                })
                 document.onmouseup = null;
                 document.onmousemove = null;
             };
             document.onmousemove = ((e) => {
                 e = e || window.event;
                 e.preventDefault();
-                
+
                 pos1 = pos3 - e.clientX;
                 pos2 = pos4 - e.clientY;
 
@@ -251,19 +267,20 @@ class TextureSettings {
                 pos4 = e.clientY;
 
                 this.div.css({
+                    transition: '0s',
                     marginLeft: `-=${pos1}`,
                     marginTop: `-=${pos2}`
                 });
             }).bind(this);
 
-            this.bringToTop();            
+            this.bringToTop();
         }).bind(this));
 
         let closeButton = $('<div>')
             .addClass('button')
             .html(`✖`)
             .on('click', (() => {
-                this.div.detach();
+                this.close();
             }).bind(this));
 
         header.append(closeButton);
@@ -273,6 +290,15 @@ class TextureSettings {
         this.table = this.createTextureSettingsTable();
         this.div.append(this.table);
         this.div.on('mousedown focus', this.bringToTop.bind(this));
+    }
+
+    close() {
+        this.div.fadeOut({
+            duration: 100,
+            complete: () => {
+                this.div.detach();
+            }
+        });
     }
 
     bringToTop() {
@@ -292,14 +318,14 @@ class TextureSettings {
         return this.settings;
     }
 
-    createTextureSettingsTable() 
+    createTextureSettingsTable()
     {
         let onUpdate = this.onSettingsUpdate.bind(this);
         let updateEvents = 'change input keyup';
 
         let table = $('<table>')
             .addClass('textureSettingsTable');
-        
+
         function makeFilterCell(settings) {
             let cell = $('<td>');
 
@@ -313,7 +339,7 @@ class TextureSettings {
             select.on(updateEvents, onUpdate);
             cell.append(select);
 
-            cell.data('getSettings', (() => {                
+            cell.data('getSettings', (() => {
                 const remapTable = {
                     nearest: THREE.NearestFilter,
                     linear: THREE.LinearFilter
@@ -322,7 +348,7 @@ class TextureSettings {
                     return (value in remapTable) ? remapTable[value] : DefaultTextureSettings.magFilter;
                 }
                 let value = remap(select.children("option:selected").val())
-                return { 
+                return {
                     minFilter: value,
                     magFilter: value
                 };
@@ -359,8 +385,8 @@ class TextureSettings {
                 .append($('<option value="nearest">').text('Nearest'))
                 .append($('<option value="linear">').text('Linear'));
             minFilterSelect.children().eq(
-                ((settings.minFilter === THREE.NearestFilter) || 
-                (settings.minFilter === THREE.NearestMipMapNearestFilter) || 
+                ((settings.minFilter === THREE.NearestFilter) ||
+                (settings.minFilter === THREE.NearestMipMapNearestFilter) ||
                 (settings.minFilter === THREE.NearestMipMapLinearFilter)) ? 0 : 1).attr("selected", "selected")
             minFilterSelect.on(updateEvents, onUpdate);
             row2.append($('<td>').append(minFilterSelect));
@@ -369,7 +395,7 @@ class TextureSettings {
 
             cell.append(table);
 
-            cell.data('getSettings', ((magFilter) => {                
+            cell.data('getSettings', ((magFilter) => {
                 const remapTable = {};
 
                 remapTable[THREE.NearestFilter] = {
@@ -387,16 +413,16 @@ class TextureSettings {
                     let subtable = remapTable[magFilter];
                     if (!(value in subtable)) {
                         return subtable.linear;
-                    } 
+                    }
                     return remapTable[magFilter][value];
                 }
-                let data = { 
+                let data = {
                     generateMipmaps: checkbox.is(":checked")
                 }
                 if (data.generateMipmaps) {
                     data['minFilter'] = remap(magFilter, minFilterSelect.children("option:selected").val());
                 };
-                
+
                 return data;
             }));
 
@@ -426,7 +452,7 @@ class TextureSettings {
             row1.append($('<td>').append(selectH));
 
             table.append(row1);
-                
+
             let row2 = $('<tr>');
             row2.append($('<td>').append($('<label>').text("Vertical")));
 
@@ -443,7 +469,7 @@ class TextureSettings {
 
             cell.append(table);
 
-            cell.data('getSettings', (() => {                
+            cell.data('getSettings', (() => {
                 const remapTable = {
                     clamp: THREE.ClampToEdgeWrapping,
                     repeat: THREE.RepeatWrapping,
@@ -452,7 +478,7 @@ class TextureSettings {
                 let remap = (value) => {
                     return (value in remapTable) ? remapTable[value] : THREE.ClampToEdgeWrapping;
                 }
-                return { 
+                return {
                     wrapS: remap(selectH.children("option:selected").val()),
                     wrapT: remap(selectV.children("option:selected").val())
                 };
@@ -490,11 +516,11 @@ class TextureSettings {
 
             let filterSettings = filterCell.data('getSettings')();
             let mipMapsSettings = mipMapsCell.data('getSettings')(filterSettings.magFilter);
-            
+
             let wrappingSettings = wrappingCell.data('getSettings')();
 
             let result = Object.assign({}, filterSettings, mipMapsSettings, wrappingSettings);
-            
+
             return result;
         }).bind(this, table))
 
@@ -508,9 +534,31 @@ class TextureSettings {
         button.text('🛠');
 
         button.on('click', event => {
-            $('body').append(this.div);
-            // TODO: position div to click event
-        })
+
+            let animationOptions = {
+                duration: 100,
+                easing: 'linear'
+            };
+
+            if (0 === this.div.parent().length) {
+
+                this.div.hide();
+                this.div.css({
+                    marginLeft: event.clientX - 20,
+                    marginTop: event.clientY - 15
+                });
+                $('body').append(this.div);
+                this.div.fadeIn(animationOptions);
+
+            } else {
+                this.div.animate({
+                    marginLeft: event.clientX - 20,
+                    marginTop: event.clientY - 15
+                }, animationOptions);
+            }
+
+            this.bringToTop();
+        });
 
         return button;
     }
@@ -532,11 +580,6 @@ class Settings {
         this.initialized = false;
         this.hidden = false;
 
-
-        if (!this.button) {
-            this.button = this.makeHideButton();
-        }
-
         if (!this.error) {
             this.error = this.makeErrorView();
             $('body').append(this.error);
@@ -547,7 +590,27 @@ class Settings {
 
     init()
     {
-        this.div = $('<div id=settings>');
+        this.div = $('<div>');
+        this.div.addClass('Settings');
+
+        this.div.on('mousedown focus', this.bringToTop.bind(this));
+
+        this.content = $('<div>');
+
+        this.header = this.makeHeader();
+        this.content.append(this.header);
+        this.content.append($('<div>').addClass('settingsHeaderSpace'));
+
+        this.modeSwitch = this.makeModeSwitch();
+        this.content.append(this.modeSwitch);
+
+        this.table = $('<div>');
+        this.content.append(this.table);
+
+        this.div.append(this.content);
+
+        this.button = this.makeHideButton();
+        this.div.append(this.button);
 
         $('body').append(this.div);
 
@@ -572,9 +635,6 @@ class Settings {
 
         if (this.uniformsDesc) {
             let table = this.buildTable(this.uniformsDesc);
-            if (this.hidden) {
-                table.hide();
-            }
             if (this.table) {
                 this.table.replaceWith(table);
             } else {
@@ -583,24 +643,139 @@ class Settings {
             this.table = table;
         }
 
-        if (!this.button) {
-            this.button = this.makeHideButton();
-        }
-
-        div.append(this.button);
-
         this.setErrorMessage(this.errorMessage);
-       
+
     }
 
-    makeHeader() {
+    makeHeader()
+    {
         let header = $('<div>');
         header.addClass('settingsHeader');
         header.text('Settings');
 
+        header.on('mousedown', ((e) => {
+            e = e || window.event;
+            e.preventDefault();
+
+            var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+
+            let startLeft = parseFloat(this.div.css('left')) || 0;
+            let startTop = parseFloat(this.div.css('top')) || 0;
+
+            let startX = e.clientX;
+            let startY = e.clientY;
+            let transitionOrigValue = this.div.css('transition');
+
+            document.onmouseup = () => {
+                document.onmouseup = null;
+                document.onmousemove = null;
+                this.div.css({
+                    transition: transitionOrigValue
+                });
+            };
+            document.onmousemove = ((e) => {
+                e = e || window.event;
+                e.preventDefault();
+
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+
+                let dx = e.clientX - startX;
+                let dy = e.clientY - startY;
+
+                this.div.css({
+                    transition: '0s',
+                    left: startLeft + dx,
+                    top: startTop + dy
+                });
+            }).bind(this);
+
+            this.bringToTop();
+        }).bind(this));
+
+        let closeButton = $('<div>')
+            .addClass('button')
+            .html(`✖`)
+            .on('click', (() => {
+                this.toggleHidden();
+            }).bind(this));
+
+        header.append(closeButton);
+
         return header;
     }
-    
+
+    bringToTop() {
+        this.div.css({
+            'z-index': window.maxZIndex++
+        });
+    }
+
+    makeModeSwitch()
+    {
+        let div = $('<div>')
+            .addClass('ModeSwitch');
+
+
+        let label = $('<div>')
+            .addClass('Label')
+            .text('Mode:');
+        div.append(label);
+
+
+        let mode2d = $('<div>')
+            .addClass('Mode')
+            .addClass('Active')
+            .append($('<div>')
+                .addClass('Content')
+                .text('2D'));
+
+        div.append(mode2d);
+
+        let modeMesh = $('<div>')
+            .addClass('Mode')
+            .append($('<div>')
+                .addClass('Content')
+                .text('◯'));
+
+        let toggleMode = (mode) => {
+            switch(mode) {
+                case '2d':
+                    SetShaderMode(ShaderMode2D);
+                    if (modeMesh.hasClass('Active')) {
+                        modeMesh.removeClass('Active');
+                    }
+                    if (!mode2d.hasClass('Active')) {
+                        mode2d.addClass('Active');
+                    }
+                break;
+                case 'mesh':
+                    SetShaderMode(ShaderModeMesh);
+                    if (!modeMesh.hasClass('Active')) {
+                        modeMesh.addClass('Active');
+                    }
+                    if (mode2d.hasClass('Active')) {
+                        mode2d.removeClass('Active');
+                    }
+                break;
+            }
+        }
+
+        mode2d.bind('click', toggleMode.bind(this, '2d'));
+
+        modeMesh.bind('click', toggleMode.bind(this, 'mesh'));
+
+        div.append(modeMesh);
+
+        return div;
+    }
+
     formatErrorMessage(message) {
         let text = $('<div>');
         text.addClass('errorMesageContent');
@@ -613,13 +788,6 @@ class Settings {
                 return true;
             }
             return false;
-            let emptyre = /^\s*\^\~*\s*$/;
-            if (emptyre.exec(line)) 
-            {
-                return false;
-            } else { 
-                return true;
-            }
         })
         .map((line => {
             let div = $('<div>');
@@ -671,7 +839,7 @@ class Settings {
     }
 
     setErrorMessage(error) {
-        
+
         this.errorMessage = error;
 
         this.error.html('');
@@ -680,8 +848,8 @@ class Settings {
             this.error.hide();
             $('#errorFrame').hide();
             return;
-        } 
-        
+        }
+
         this.error.append(this.formatErrorMessage(error));
         this.error.show();
 
@@ -703,14 +871,15 @@ class Settings {
         } else {
             button.text('Hide 🛠');
         }
-            
+
         return button;
     }
 
-    toggleHidden() {
-
-        if (this.hidden) {
-            this.div.children().eq(0).show(100, event => {
+    toggleHidden()
+    {
+        if (this.hidden)
+        {
+            this.content.show(100, () => {
                 this.button.bind('click', this.toggleHidden.bind(this));
             });
 
@@ -719,10 +888,13 @@ class Settings {
             }
 
             this.button.text('Hide 🛠');
-            
+            this.button.hide(100);
+
             this.div.unbind('click');
-        } else {
-            this.div.children().eq(0).hide(100, event => {
+        }
+        else
+        {
+            this.content.hide(100, () => {
                 this.div.bind('click', this.toggleHidden.bind(this));
             });
 
@@ -731,10 +903,11 @@ class Settings {
             }
 
             this.button.text('🛠');
+            this.button.show(100);
 
             this.button.unbind('click');
         }
-        
+
         this.hidden = !this.hidden;
     }
 
@@ -744,14 +917,14 @@ class Settings {
         let cell1 = $('<td>')
             .addClass('column1')
             .text(ifdef);
-        
+
         let cell2 = $('<td>')
             .addClass('spacer')
             .text(" ");
 
-        let cell3 = $('<td>')        
+        let cell3 = $('<td>')
             .addClass('column2');
-            
+
         let checkbox = $(`<input type="checkbox" ${this.enabledIfdefs.indexOf(ifdef) < 0 ? '' : 'checked'}>`);
         checkbox.addClass('ifdefCheckbox');
 
@@ -759,7 +932,7 @@ class Settings {
         checkbox.on('change input keyup', ((checkbox, ifdef, event) => {
 
             let checked = checkbox.is(":checked");
-            
+
             let enabledIndex = this.enabledIfdefs.indexOf(ifdef);
             let enabled = enabledIndex >= 0;
             if (checked && !enabled) {
@@ -786,7 +959,7 @@ class Settings {
 
         let scrollBox = $('<div>');
         scrollBox.addClass('settingsScrollBox');
-        
+
         var table = $('<table>')
             .addClass('settings');
 
@@ -816,11 +989,11 @@ class Settings {
             this.uniforms[tex] = field;
             this.uniforms[tex].type = 't';
         });
-        
+
         return scrollBox.append(table);
     }
 
-    getTextureSettings(name, file, onUpdate, textureSettingsSettings) 
+    getTextureSettings(name, file, onUpdate, textureSettingsSettings)
     {
         var instance = this.textureSettingsInstances[name];
 
@@ -833,7 +1006,7 @@ class Settings {
     }
 
     getInputFieldForType(type, value, name) {
-        
+
         let onUpdate = this.onSettingsUpdate.bind(this);
 
         var div = $('<div>')
@@ -844,15 +1017,15 @@ class Settings {
             let input = $(`<input type=number step=0.001 value=${value} pattern="^([-+]?\d*\.?\d+)(?:[eE]([-+]?\d+))?$">`);
 
             var marker;
-            
-            
-            
+
+
+
             input.on('mousedown', (event) => {
-            
+
                 var startValue = parseFloat(input.val());
 
                 var mouseDownTime = new Date().getTime();
-                
+
                 var startPos = new THREE.Vector2(event.clientX, event.clientY);
 
                 marker = $('<div>')
@@ -864,15 +1037,15 @@ class Settings {
                     opacity: 0,
                     cursor: 'default'
                 });
-                
+
                 let text = $('<p>')
                 .addClass('floatScrollMarkerText')
                 .text('1.00x');
 
                 marker.append(text);
 
-                document.onmousemove = (event) => {    
-                    
+                document.onmousemove = (event) => {
+
                     marker.css({
                         left: (event.clientX - 50) + 'px',
                         top: (event.clientY - 50) + 'px',
@@ -885,17 +1058,17 @@ class Settings {
                     }
 
                     let pos = new THREE.Vector2(event.clientX, event.clientY);
-                    
+
                     let speed = Math.exp(Math.max(1.0, Math.abs(startPos.y - pos.y)) * 0.01);
 
                     if (event.shiftKey) {
                         speed = 1.0 / Math.abs(speed);
-                    }                    
-                    
+                    }
+
                     if (speed > 0.01) {
                         text.text(`${speed.toFixed(2)}x`);
                     }
-                    else 
+                    else
                     {
                         text.text(`${speed.toPrecision(4)}x`);
                     }
@@ -954,7 +1127,7 @@ class Settings {
                 arr.toArray(jsarr);
                 arr = jsarr;
             }
-            
+
             if (!(arr instanceof Array)) {
                 try {
                     arr = Array.from(arr);
@@ -966,7 +1139,7 @@ class Settings {
             arr = arr.map(e => parseFloat(e));
 
             var delta = arr.length - size;
-        
+
             while (delta-- > 0) { arr.pop(); }
             while (delta++ < 0) { arr.push(0); }
 
@@ -1002,10 +1175,10 @@ class Settings {
                 .addClass('y')
                 .on('change input keyup', onUpdate);
             div.append(y);
-            
+
             div.data("getValue", ((x, y) => [ x.val(), y.val() ]).bind(this, x, y));
         }
-        
+
         if (0 === type.localeCompare("vec3")) {
 
             value = resize(value, 3);
@@ -1073,18 +1246,18 @@ class Settings {
             let cell1 = $('<td>');
             let cell2 = $('<td>');
 
-            
+
             let file = $(`<input type=file hidden>`)
                 .addClass('textureInput');
 
-                
+
             let textureSettingsSettings = value ? (value.settings ? value.settings : DefaultTextureSettings) : DefaultTextureSettings;
             let textureSettings = this.getTextureSettings(name, file, onUpdate, textureSettingsSettings);
-            
+
             div.data('textureSettings', textureSettings);
             cell1.append(textureSettings.getActivationButton());
-            
-            if (value) {                
+
+            if (value) {
                 if (value.filename) {
                     file.data('filename', value.filename);
                 }
@@ -1093,16 +1266,16 @@ class Settings {
                     file.data('texture', value.value);
                 } else if (value.filename) {
                     this.fileOpener.load(value.filename).then(((file, filename, onUpdate, data) => {
-                        let dataUri = data.data;    
+                        let dataUri = data.data;
                         let texture = LoadTexture(dataUri, textureSettings.getSettings(), filename);
-                        value.value = texture;                        
-                        file.data('texture', texture);                            
+                        value.value = texture;
+                        file.data('texture', texture);
                         if (file.data('onFileSelected')) file.data('onFileSelected')(filename);
                         onUpdate();
                     }).bind(this, file, value.filename, onUpdate));
                 }
             }
-            
+
             function getBaseName(path) {
                 return path.split(/[/\\]/).pop();
             }
@@ -1128,7 +1301,7 @@ class Settings {
 
                 display.on('click', ((onUpdate, file, e) => {
                     this.fileOpener.open().then(((onUpdate, file, data) => {
-                        file.data('filename', data.filename);                        
+                        file.data('filename', data.filename);
                         file.data('texture', LoadTexture(data.data, textureSettings.getSettings(), data.filename));
                         if (file.data('onFileSelected')) file.data('onFileSelected')(data.filename);
                         onUpdate();
@@ -1139,10 +1312,10 @@ class Settings {
             }
 
             cell2.append(file);
-            
+
             div.data('getValue', ((file, div) => {
-                return { 
-                    texture: file.data('texture'), 
+                return {
+                    texture: file.data('texture'),
                     filename: file.data('filename'),
                     settings: div.data('textureSettings').getSettings()
                 };
@@ -1176,7 +1349,7 @@ class Settings {
                 result[key] = fields;
             }
         });
-        
+
         this.uniformsValues = result;
     }
 
@@ -1193,11 +1366,11 @@ class Settings {
     onSettingsUpdate() {
 
         this.buildUniforms();
-        
+
         var serializedUniforms = {};
         Object.keys(this.uniformsValues).forEach(key => {
             if (this.uniformsValues[key]['type'] === 't') {
-                serializedUniforms[key] = { 
+                serializedUniforms[key] = {
                     type: 't',
                     filename: this.uniformsValues[key]['filename'],
                     settings: this.uniformsValues[key]['settings']
@@ -1217,7 +1390,7 @@ class Settings {
 
     buildField(key, name, type) {
         let value = 0;
-        
+
         if (key) {
             if (this.uniformsValues[key] && this.uniformsValues[key][name]) {
                 value = this.uniformsValues[key][name];
@@ -1258,11 +1431,11 @@ window.settings = new Settings();
 
 
 function CreateUniformsFromDesc(uniformsDesc, texturesDesc, values)
-{    
+{
     var newUniforms = {};
 
     let GetInitForType = function(key, name, type) {
-        
+
         let value = (values && (key in values)) ? values[key][name] : undefined;
 
         if (0 === type.localeCompare('float')) {
@@ -1297,14 +1470,14 @@ function CreateUniformsFromDesc(uniformsDesc, texturesDesc, values)
         });
         newUniforms[key] = { value: fields };
     });
-    
+
     Object.keys(texturesDesc).forEach(tex => {
 
         var textureValue = undefined;
 
         if (values && tex in values) {
             var data = values[tex];
-            if (data) {                
+            if (data) {
                 textureValue = data ? (data.value ? data.value : DefaultTexture) : DefaultTexture;
 
                 if (data.settings) {
@@ -1312,7 +1485,7 @@ function CreateUniformsFromDesc(uniformsDesc, texturesDesc, values)
                     if (textureValue.image) {
                         textureValue.needsUpdate = true;
                     }
-                } 
+                }
             }
         }
 
@@ -1320,14 +1493,14 @@ function CreateUniformsFromDesc(uniformsDesc, texturesDesc, values)
             newUniforms[`SPIRV_Cross_Combined${tex}${tex}Sampler`] = { type: 't', value: textureValue };
         }
     });
-    
+
     return newUniforms;
 }
 
 window.addEventListener("message", event => {
-    
+
     switch(event.data.command) {
-        case 'updateFragmentShader':    
+        case 'updateFragmentShader':
             window.fragmentShaderCode = event.data.data.code;
             window.uniformsDesc = event.data.data.uniforms;
             window.texturesDesc = event.data.data.textures;
@@ -1335,22 +1508,22 @@ window.addEventListener("message", event => {
             if (window.settings) {
                 window.settings.update(window.uniformsDesc);
             }
-            
+
             UpdateMaterial();
         break;
-        case 'updateVertexShader':    
+        case 'updateVertexShader':
             vertexShaderCode = event.data.data.code;
             UpdateMaterial();
         break;
-        case 'showErrorMessage':    
+        case 'showErrorMessage':
             if (window.settings) {
-                window.settings.setErrorMessage(event.data.data);        
+                window.settings.setErrorMessage(event.data.data);
             }
         break;
-        case 'loadUniforms':    
+        case 'loadUniforms':
             if (window.settings) {
                 var deserialized = {};
-                
+
                 Object.keys(event.data.data).forEach(key => {
                     let field = event.data.data[key];
 
@@ -1360,7 +1533,7 @@ window.addEventListener("message", event => {
                             settings: field.settings,
                             filename: field.filename
                         };
-                        
+
                     } else {
                         deserialized[key] = field;
                     }
@@ -1376,14 +1549,14 @@ window.addEventListener("message", event => {
                 console.error('window.settings not initialized yet');
             }
         break;
-        case 'updateIfdefs':    
+        case 'updateIfdefs':
             window.ifdefs = event.data.data.ifdefs;
             window.settings.setEnabledIfdefs(event.data.data.enabledIfdefs);
         break;
-        case 'openFile':    
+        case 'openFile':
             window.settings.fileOpener.onFileResult(event.data.data);
         break;
-        case 'loadFile':   
+        case 'loadFile':
             window.settings.fileOpener.onFileResult(event.data.data);
         break;
         default:
@@ -1391,35 +1564,121 @@ window.addEventListener("message", event => {
     }
 });
 
-function init() {
-    container = document.getElementById( 'content' );
+function ShaderMode2D()
+{
     camera = new THREE.Camera();
-    camera.position.z = 1;
-    scene = new THREE.Scene();
+
+    camera.position.set(-1, 0, 0);
+
+    window.vertexShaderCode = document.getElementById( 'vertexShader' ).textContent;
+
+    window.mesh = new THREE.Mesh( new THREE.PlaneGeometry( 2, 2 ), window.material );
+
+    delete scene.background;
+}
+
+function ShaderModeMesh()
+{
+    camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 1000 );
+
+    camera.position.set(-500, 0, 0);
+
+    window.vertexShaderCode = document.getElementById( 'vertexShaderMesh' ).textContent;
+
+    window.mesh = new THREE.Mesh( new THREE.SphereGeometry( 100, 128, 128 ), window.material );
+
+    scene.background = new THREE.CubeTextureLoader()
+        .setPath(document.getElementById( 'skyboxPath' ).textContent)
+        .load( [
+            'posx.jpg',
+            'negx.jpg',
+            'posy.jpg',
+            'negy.jpg',
+            'posz.jpg',
+            'negz.jpg'
+        ] );
+
+    scene.background.generateMipmaps = true;
+}
+
+function SetShaderMode(func)
+{
+    if (window.mesh) {
+        scene.remove(window.mesh);
+    }
+
+    func();
+
+    camera.lookAt(new THREE.Vector3(0,0,0));
+
+    scene.add(window.mesh);
+
+    if (func == ShaderModeMesh)
+    {
+        controls = new THREE.OrbitControls( camera, renderer.domElement );
+
+        //controls.addEventListener( 'change', render ); // call this only in static scenes (i.e., if there is no animation loop)
+
+        controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+        controls.dampingFactor = 0.25;
+
+        controls.rotateSpeed = 0.5;
+
+        controls.enablePan = false;
+        controls.screenSpacePanning = false;
+
+        controls.minDistance = 75;
+        controls.maxDistance = 1000;
+
+        //controls.maxPolarAngle = Math.PI / 2;
+        controls.target = new THREE.Vector3(0, 0, 0);
+    }
+    else
+    {
+        if (typeof(controls) !== 'undefined')
+        {
+            controls.enabled = false;
+            controls.dispose();
+            delete controls;
+        }
+    }
 
     UpdateMaterial();
-    
-    window.mesh = new THREE.Mesh( new THREE.PlaneGeometry( 2, 2 ), window.material );
-    scene.add( window.mesh );
-    
-    renderer = new THREE.WebGLRenderer();
+}
+
+function init()
+{
+    container = document.getElementById( 'content' );
+
+    scene = new THREE.Scene();
+
+    renderer = new THREE.WebGLRenderer({
+        antialias: true
+    });
+
+    SetShaderMode(ShaderMode2D);
+
+    UpdateMaterial();
+
     container.appendChild( renderer.domElement );
-    
+
     renderer.setSize( window.innerWidth, window.innerHeight );
-   
-    $(window).resize(function() {
+
+    $(window).resize(() => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
         renderer.setSize( window.innerWidth, window.innerHeight );
     });
 }
 
-function animate() 
+function animate()
 {
     requestAnimationFrame( animate );
     render();
 }
 
-function render() 
-{        
+function render()
+{
     var elapsedMilliseconds = Date.now() - window.startTime;
     var elapsedSeconds = elapsedMilliseconds / 1000.;
     window.shaderTime = 60. * elapsedSeconds;
@@ -1430,23 +1689,23 @@ function render()
     renderer.render(scene, camera);
 }
 
-$(document).ready(() => 
+$(document).ready(() =>
 {
     if (!window.vertexShaderCode) {
         window.vertexShaderCode = document.getElementById( 'vertexShader' ).textContent;
     }
-    
+
     if (!window.fragmentShaderCode) {
         window.fragmentShaderCode = document.getElementById( 'fragmentShader' ).textContent;
     }
-    
+
     window.settings.init();
 
     if (window.uniformsDesc) {
         window.settings.update(window.uniformsDesc);
     }
-    
+
     init();
-    
+
     animate();
 });

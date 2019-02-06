@@ -17,6 +17,8 @@ body {
 #content {
     width: 100%;
     height: 100%;
+    padding: 0;
+    margin: 0;
 }
 
 div.settingsScrollBox {
@@ -25,29 +27,29 @@ div.settingsScrollBox {
     overflow-x: hidden;
 }
 
-#settings {
+div.Settings {
     position: fixed;
     top: 3px;
     left: 7px;
+    height: fit-content;
+    width: fit-content;
     background: rgba(0, 0, 0, 0.75);
     color: rgba(255, 255, 255, 0.9);
     border: 0.5px solid rgba(255, 255, 255, 0.25);
     padding: 8px;
     opacity: 0.5;
     transition: 0.25s;
+    overflow: hidden;
 }
 
-#settings:hover {
-    /* background: rgba(0, 0, 0, 0.75); */
-    transition: 0.5s;
+div.Settings:hover {
+    background: rgba(0, 0, 0, 0.75);
     opacity: 1;
     transition: 0.25s;
 }
 
-#settings.hidden {
-    position: fixed;
-    top: 3px;
-    left: 7px;
+div.Settings.hidden {
+    cursor: pointer;
     background: rgba(0, 0, 0, 0.1);
     color: rgba(255, 255, 255, 0.5);
     border: 0.5px solid rgba(255, 255, 255, 0.1);
@@ -56,8 +58,7 @@ div.settingsScrollBox {
     transition: 0.25s;
 }
 
-#settings.hidden:hover {
-    cursor: pointer;
+div.Settings.hidden:hover {
     color: rgba(255, 255, 255, 0.75);
     border: 0.5px solid rgba(255, 255, 255, 0.75);
     background: rgba(0, 0, 0, 0.75);
@@ -109,7 +110,7 @@ input:focus:active {
     border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
-.inputBox {    
+.inputBox {
     display:inline-block;
     position: relative;
     width: 150px;
@@ -142,7 +143,7 @@ div.button {
     margin-bottom: 1px;
     padding-top: 1px;
     padding-bottom: 4px;
-    
+
     color: rgba(255, 255, 255, 0.75);
     background: #2c2c2c;
     transition: 0.1s;
@@ -159,7 +160,7 @@ div.button:active {
     border: 0.5px solid rgba(255, 255, 255, 0.65);
 }
 
-#settings.hidden div.button {
+div.Settings.hidden div.button {
     margin-top: 0px;
     margin-left: 2px;
     margin-right: 2px;
@@ -181,24 +182,31 @@ div.button:active {
     font-family: -apple-system, BlinkMacSystemFont, Segoe WPC, Segoe UI, HelveticaNeue-Light, Ubuntu, Droid Sans, sans-serif
 }
 
-input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button { 
-      -webkit-appearance: none; 
-      margin: 0; 
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
 }
 
 div.textureSettings {
     position: fixed;
     left: 7px;
     top: 3px;
-    width: 250px;
-    height: 250px;
+    width: fit-content;
     height: fit-content;
     background: rgba(0, 0, 0, 0.75);
     color: rgba(255, 255, 255, 0.9);
     border: 0.5px solid rgba(255, 255, 255, 0.25);
     padding: 8px;
     cursor: default;
+    opacity: 0.5;
+    transition: 0.25s;
+}
+
+div.textureSettings:hover {
+    background: rgba(0, 0, 0, 0.75);
+    opacity: 1;
+    transition: 0.25s;
 }
 
 table.textureSettingsTable {
@@ -275,6 +283,7 @@ div.textureSettingsHeader {
     background: rgba(255, 255, 255, 0.1);
 }
 
+
 #headerSpacer {
     height: 32px;
     font-size: 14pt;
@@ -286,15 +295,15 @@ div.textureSettingsHeader {
 
 div.textureSettingsHeader .button {
     font-family: 'Courier New', Courier, monospace;
-    position: absolute;    
+    position: absolute;
     width: 20px;
     height: 20px;
     margin: 0;
     padding: 0;
     top: 3px;
-    right: 3px;
+    left: 3.5px;
     padding-top: -2px;
-    padding-left: 1px;
+    padding-left: 0px;
 }
 
 div.textureSettingsActivationButton {
@@ -353,24 +362,24 @@ div.errorMessage div.errorMessageLine div {
 div.errorMessage div.filename::after,
 div.errorMessage div.line::after,
 div.errorMessage div.column::after,
-div.errorMessage div.error::after { 
+div.errorMessage div.error::after {
     content: ":";
     color: rgba(255, 255, 255, 0.5);
 }
 
-div.errorMessage div.error::before { 
+div.errorMessage div.error::before {
     content: " ";
 }
 
-div.errorMessage div.errorLocation { 
+div.errorMessage div.errorLocation {
     cursor: pointer;
 }
-div.errorMessage div.errorLocation:hover { 
+div.errorMessage div.errorLocation:hover {
     color: rgba(225, 225, 255, 1.0);
 
 }
 
-div.errorMessage div.message::before { 
+div.errorMessage div.message::before {
     content: " ";
 }
 
@@ -423,4 +432,95 @@ div.errorMessage {
     top: 50%;
     text-shadow: 2px 2px #000000;
 
+}
+
+div.settingsHeader {
+    cursor: default;
+    user-select: none;
+    position: absolute;
+    width: 100%;
+    margin-top: -8px;
+    margin-bottom: 0;
+    margin-left: -8px;
+    margin-right: -8px;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+div.settingsHeaderSpace {
+    user-select: none;
+    height: 26px;
+    font-size: 14pt;
+}
+
+.ModeSwitch {
+    margin-top: 0px;
+    margin-bottom: 6px;
+}
+
+.ModeSwitch .Label,
+.ModeSwitch .Mode {
+    display: inline-block;
+}
+
+.ModeSwitch .Label {
+    user-select: none;
+    cursor: default;
+    position: relative;
+    top: 3.5px;
+    padding-right: 10px;
+}
+
+.ModeSwitch .Mode {
+    width: 35px;
+    height: 22px;
+    cursor: pointer;
+    user-select: none;
+    border: 0.5px solid rgba(255, 255, 255, 0.15);
+    text-align: center;
+    /* margin-top: 4px;
+    margin-bottom: 1px; */
+
+    color: rgba(255, 255, 255, 0.75);
+    background: #2c2c2c;
+    transition: 0.1s;
+    margin-right: 5px;
+}
+
+.ModeSwitch .Mode.Active {
+    background: #6c6c6c;
+}
+
+.ModeSwitch .Mode .Content {
+    position: relative;
+    top: 1.5px;
+}
+
+.ModeSwitch .Mode:hover {
+    background: #3c3c3c;
+    border: 0.5px solid rgba(255, 255, 255, 0.45);
+    transition: 0.1s;
+}
+.ModeSwitch .Mode.Active:hover {
+    background: #8c8c8c;
+    border: 0.5px solid rgba(255, 255, 255, 0.45);
+    transition: 0.1s;
+}
+
+div.settingsHeader .button {
+    display: block;
+    font-family: 'Courier New', Courier, monospace;
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    top: 3px;
+    left: 3.5px;
+    padding-top: -2px;
+    padding-left: 0px;
 }

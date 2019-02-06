@@ -75,6 +75,10 @@ function getWebviewContent(context: vscode.ExtensionContext): string
 			<link rel="stylesheet" type="text/css" href="${getMediaPath(context, 'css/style.css')}">
 			<script src="${getMediaPath(context, 'scripts/jquery.min.js')}" language="javascript"></script>
 			<script src="${getMediaPath(context, "scripts/three.min.js")}" language="javascript"></script>
+			<script src="${getMediaPath(context, "scripts/OrbitControls.js")}" language="javascript"></script>
+			<script src="${getMediaPath(context, "scripts/DDSLoader.js")}" language="javascript"></script>
+			<script src="${getMediaPath(context, "scripts/TGALoader.js")}" language="javascript"></script>
+			<script src="${getMediaPath(context, "scripts/DDSLoader.js")}" language="javascript"></script>
 		</head>
 		<img id="defaultTexture" src="${getMediaPath(context, "images/uvgrid.jpg")}" hidden="hidden"></img>
 		<script id="fragmentShader" type="x-shader/x-fragment">
@@ -84,14 +88,21 @@ function getWebviewContent(context: vscode.ExtensionContext): string
 			}
 		</script>
 		<script id="vertexShader" type="x-shader/x-vertex">
-			uniform float time;
-			uniform vec2 resolution;
 			varying highp vec2 in_var_TEXCOORD0;
 			void main()	{
 				in_var_TEXCOORD0 = uv;
 				gl_Position = vec4( position, 1.0 );
 			}
 		</script>
+		<script id="vertexShaderMesh" type="x-shader/x-vertex">
+			varying highp vec2 in_var_TEXCOORD0;
+			void main()	{
+				in_var_TEXCOORD0 = uv;
+				gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+			}
+		</script>
+		<script id="skyboxPath" type="x-skybox-path/x-path">${getMediaPath(context, "images/skybox")}/</script>
+		
 		<body>
 			<div id="content"></div>
 			<div id="errorFrame"></div>

@@ -17,7 +17,7 @@ export class GLSLCode {
 }
 
 export default class GLSLCompiler {
-    
+
     private defaultArgs: string[] = [ '--version', '2.0', '--es' ];
 
     private executable: string = "SPIRV-Cross.exe";
@@ -32,7 +32,7 @@ export default class GLSLCompiler {
     }
 
     public Compile(filename: string, reflect: boolean = false): Promise<string>
-    {        
+    {
         return new Promise<string>((resolve, reject) => {
             let options = vscode.workspace.rootPath ? { cwd: vscode.workspace.rootPath } : undefined;
 
@@ -48,7 +48,7 @@ export default class GLSLCompiler {
                 console.error('childProcess error:', error);
                 reject(error);
             });
-            
+
             if (!childProcess.pid) {
                 let errorMessage = "no child process pid (failed to create process)";
                 console.error(errorMessage);
@@ -61,7 +61,7 @@ export default class GLSLCompiler {
             childProcess.stdout.on('data', (data: Buffer) => {
                 CompleteData += data.toString();
             });
-            
+
             var err: string = "";
             childProcess.stderr.on('data', (data: Buffer) => {
                 err += data.toString();
@@ -80,7 +80,7 @@ export default class GLSLCompiler {
         });
     }
 
-    public Process(filename: string): Promise<GLSLCode> 
+    public Process(filename: string): Promise<GLSLCode>
     {
         return new Promise<GLSLCode>((resolve, reject) => {
             this.Compile(filename, false)
@@ -95,5 +95,5 @@ export default class GLSLCompiler {
             .catch(reason => reject(reason));
         });
     }
-    
+
 }

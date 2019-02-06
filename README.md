@@ -5,9 +5,10 @@ HLSL preview for VSCode
 
 ## Features
 * Updates in real time
-* Configurable entry point 
+* Configurable entry point
 * DirectX 11 syntax support
 * Compiler error reporting
+* Mesh preview
 * Includes easy to use GUI for setting up variables
 
 ## Setup
