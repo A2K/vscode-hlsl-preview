@@ -590,6 +590,14 @@ class Settings {
 
     init()
     {
+        this.vscode.postMessage({
+            type: 'getUniforms'
+        });
+
+        this.vscode.postMessage({
+            type: 'update'
+        });
+
         this.div = $('<div>');
         this.div.addClass('Settings');
 
@@ -1498,7 +1506,6 @@ function CreateUniformsFromDesc(uniformsDesc, texturesDesc, values)
 }
 
 window.addEventListener("message", event => {
-
     switch(event.data.command) {
         case 'updateFragmentShader':
             window.fragmentShaderCode = event.data.data.code;
@@ -1654,7 +1661,7 @@ function init()
 
     renderer = new THREE.WebGLRenderer({
         antialias: true,
-        depth: false
+        depth: true
     });
 
     SetShaderMode(ShaderMode2D);
@@ -1677,6 +1684,7 @@ function init()
 function animate()
 {
     requestAnimationFrame( animate );
+    if (typeof(controls) !== 'undefined') controls.update();
     render();
 }
 

@@ -2,7 +2,7 @@
 	"name": "hlsl-preview",
 	"displayName": "HLSL preview",
 	"description": "Real time preview for HLSL shaders",
-	"version": "0.5.1",
+	"version": "0.5.2",
 	"publisher": "A2K",
 	"bugs": {
 		"url": "https://github.com/A2K/vscode-hlsl-preview/issues"

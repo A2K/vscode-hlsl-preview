@@ -15,7 +15,7 @@ import * as fs from 'fs';
 function LoadFileBase64(filepath: string): Promise<string> {
 	return new Promise<string>((resolve, reject) => {
 		fs.readFile(filepath, { encoding: 'base64' }, (err, data) => {
-			if (err) { 
+			if (err) {
 				reject(err);
 			} else {
 				resolve(data);
@@ -37,13 +37,13 @@ function LoadFileAsDataUri(filepath: string): Promise<string> {
 const InternalParameters = [ 'iTime', 'iResolution' ];
 
 
-function GetIfdefs(text: string): string[] 
+function GetIfdefs(text: string): string[]
 {
 	let ifdefs:string[] = [];
 
 	let comment_re = /(\"[^\"]*\"(?!\\))|(\/\/[^\n]*$|\/(?!\\)\*[\s\S]*?\*(?!\\)\/)/mg;
 	let nocomments = text.replace(comment_re, '');
-	
+
 	const re = /^\s*#if(?:def\s+|\s+defined\(\s*)(\w+)\)?\s*$/gm;
 	var m;
 	while (m = re.exec(nocomments)) {
@@ -102,7 +102,7 @@ function getWebviewContent(context: vscode.ExtensionContext): string
 			}
 		</script>
 		<script id="skyboxPath" type="x-skybox-path/x-path">${getMediaPath(context, "images/skybox")}/</script>
-		
+
 		<body>
 			<div id="content"></div>
 			<div id="errorFrame"></div>
@@ -127,7 +127,7 @@ namespace RunTrigger {
         if (value === 'onSave') {
             return RunTrigger.onSave;
         }
-		
+
 		return RunTrigger.onType;
     };
 }
@@ -141,7 +141,7 @@ class HLSLPreview
 	private triggerSubscribed: boolean = false;
 
 	private context: vscode.ExtensionContext;
-	
+
 	private recompiler = new HLSLtoGLSLRecompiler();
 
 	private entryPointName:string = "main";
@@ -173,12 +173,12 @@ class HLSLPreview
 			value: defaultEntryPoint,
 			valueSelection: [0, defaultEntryPoint.length]
 		};
-		
-		vscode.window.showInputBox(dialogOptions).then(value => { 
+
+		vscode.window.showInputBox(dialogOptions).then(value => {
 			if (typeof(value) === 'undefined') { return; }
 
 			if (value === "") {
-				value = "main"; 
+				value = "main";
 			} else {
 				this.context.workspaceState.update('hlsl.preview.entrypoint', value);
 			}
@@ -195,7 +195,7 @@ class HLSLPreview
 	}
 
 	public StartPreview(): void {
-		
+
 		if (!this.currentDocument) {
 			return;
 		}
@@ -235,11 +235,23 @@ class HLSLPreview
 					enableScripts: true
 				}
 			);
-			
+
 			this.currentPanel.webview.html = getWebviewContent(this.context);
 
 			this.currentPanel.webview.onDidReceiveMessage(((e: any) => {
 				switch (e.type) {
+					case 'getUniforms':
+						if (this.currentPanel && this.currentDocument) {
+							let key = 'uniforms_' + this.currentDocument.uri.toString();
+							this.currentPanel.webview.postMessage({
+								command: "loadUniforms",
+								data: this.context.workspaceState.get(key)
+							});
+						}
+					break;
+					case 'update':
+						this.UpdateShader();
+					break;
 					case 'updateUniforms':
 						if (this.currentDocument) {
 							let key = 'uniforms_' + this.currentDocument.uri.toString();
@@ -266,7 +278,7 @@ class HLSLPreview
 								this.context.workspaceState.update(key, e.data);
 								this.UpdateShader();
 							}
-							
+
 							vscode.commands.executeCommand('hlsl.linter.setifdefs', JSON.stringify(e.data));
 						}
 					break;
@@ -298,7 +310,7 @@ class HLSLPreview
 								}
 							}).bind(this, opId));
 						}).bind(this, e.data.opId));
-					break;						
+					break;
 					case 'loadFile':
 						let opId = e.data.opId;
 						let filename = e.data.filename;
@@ -324,7 +336,7 @@ class HLSLPreview
 									let range = editor.document.lineAt(lineNumber-1).range;
 									//editor.selection = new vscode.Selection(range.start, range.end);
 									editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
-									
+
 									let cursor = editor.selection.active;
 									let pos = cursor.with(lineNumber - 1, columnNumber - 1);
 									editor.selection = new vscode.Selection(pos, pos);
@@ -345,7 +357,7 @@ class HLSLPreview
 				});
 			}
 
-			  
+
 			// Reset when the current panel is closed
 			this.currentPanel.onDidDispose(
 				() => {
@@ -356,7 +368,7 @@ class HLSLPreview
 
 		}
 
-		this.UpdateShader();
+		//this.UpdateShader();
 	}
 
 	private getUniforms(code: GLSLCode): { [key:string]: any }
@@ -368,7 +380,7 @@ class HLSLPreview
 				let structName:string = code.reflection['types'][key]['name'];
 				structName = structName.replace(/^type_/, '');
 				Object.keys(code.reflection['types'][key]['members']).forEach((memberKey) => {
-					
+
 					let member:{[key:string]:any} = code.reflection['types'][key]['members'][memberKey];
 					let name = member['name'];
 					let type = member['type'];
@@ -384,7 +396,7 @@ class HLSLPreview
 				});
 			});
 		}
-	
+
 		return uniforms;
 	}
 
@@ -432,7 +444,7 @@ class HLSLPreview
 				}
 			}
 
-			if (this.currentPanel) {				
+			if (this.currentPanel) {
 				this.currentPanel.webview.postMessage({
 					command: 'updateIfdefs',
 					data: {
@@ -441,11 +453,11 @@ class HLSLPreview
 					}
 				});
 			}
-			
-			
+
+
 			this.recompiler.HLSL2GLSL(this.currentDocument, this.entryPointName, enabledIfdefs)
 			.then((glslCode) => {
-				if (this.currentPanel) {				
+				if (this.currentPanel) {
 					this.currentPanel.webview.postMessage({
 						command: 'updateFragmentShader',
 						data: {
@@ -458,7 +470,7 @@ class HLSLPreview
 						command: 'showErrorMessage',
 						data: ""
 					});
-				}			
+				}
 				resolve(glslCode);
 			})
 			.catch(((reject:any, reason:any) => {
@@ -469,19 +481,19 @@ class HLSLPreview
 					});
 				}
 				reject(reason);
-			}).bind(this, reject));	
+			}).bind(this, reject));
 		});
 
 	}
-	
+
 
 }
 
 export function activate(context: vscode.ExtensionContext) {
 	let preview = new HLSLPreview(context);
-		
+
 	vscode.commands.registerCommand(
-		'hlsl.preview.start', 
+		'hlsl.preview.start',
 		preview.onStartCommand.bind(preview)
 	);
 }
