@@ -1653,7 +1653,8 @@ function init()
     scene = new THREE.Scene();
 
     renderer = new THREE.WebGLRenderer({
-        antialias: true
+        antialias: true,
+        depth: false
     });
 
     SetShaderMode(ShaderMode2D);
@@ -1665,8 +1666,10 @@ function init()
     renderer.setSize( window.innerWidth, window.innerHeight );
 
     $(window).resize(() => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
+        if (camera instanceof THREE.PerspectiveCamera) {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        }
         renderer.setSize( window.innerWidth, window.innerHeight );
     });
 }
