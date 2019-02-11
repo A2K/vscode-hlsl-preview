@@ -1643,6 +1643,10 @@ window.addEventListener("message", event =>
         case 'updateVertexShader':
             vertexShaderCode = event.data.data.code;
             window.uniformsDesc = event.data.data.uniforms;
+            if (event.data.data.textures instanceof Object)
+            {
+                window.texturesDesc = event.data.data.textures;
+            }
             if (window.settings)
             {
                 window.settings.update(window.uniformsDesc);

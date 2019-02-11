@@ -2,7 +2,7 @@
 	"name": "hlsl-preview",
 	"displayName": "HLSL preview",
 	"description": "Real time preview for HLSL shaders",
-	"version": "0.6.3",
+	"version": "0.6.4",
 	"publisher": "A2K",
     "icon": "media/images/icon.png",
 	"bugs": {
@@ -17,12 +17,15 @@
 		"vscode": "^1.30.0"
 	},
 	"categories": [
-		"Other"
+		"Other",
+		"Programming Languages"
 	],
 	"keywords": [
 		"hlsl",
+		"glsl",
 		"shader",
-		"preview"
+		"preview",
+		"live"
 	],
 	"activationEvents": [
 		"onCommand:hlsl.preview.start"
