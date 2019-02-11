@@ -1,15 +1,18 @@
 HLSL preview for VSCode
 =======
 
-## Video: https://www.youtube.com/watch?v=Q6EBV7tTz0U
+### Videos
+* https://www.youtube.com/watch?v=Q6EBV7tTz0U
+* https://www.youtube.com/watch?v=uhZ2Nz8ISp4
+
 
 ## Features
+* Pixel and vertex HLSL shaders preview
+* DirectX 11 syntax support
 * Updates in real time
 * Configurable entry point
-* DirectX 11 syntax support
 * Compiler error reporting
 * Mesh preview
-* Includes easy to use GUI for setting up variables
 
 ## Setup
 
@@ -30,9 +33,13 @@ Simply open any HLSL file and execute "Preview HLSL" command.
 These variables values will be automatically updated every frame. They still need to be declared to be used.
 * `float iTime`
 * `float2 iResolution`
-
+#### Vertex shader built-in variables
+* `mat4 modelMatrix`
+* `mat4 modelViewMatrix`
+* `mat4 projectionMatrix`
+* `mat4 viewMatrix`
+* `mat3 normalMatrix`
+* `vec3 cameraPosition`
 
 ## Limitations
-SPIRV-Cross limitations:
 * `uint`s are not supported.
-* bitwise operations on signed `int`s are not supported.
