@@ -1,6 +1,8 @@
 HLSL preview for VSCode
 =======
 
+![Screenshot](https://raw.githubusercontent.com/A2K/vscode-hlsl-preview/master/media/images/screenshot.png)
+
 ### Videos
 * https://www.youtube.com/watch?v=Q6EBV7tTz0U
 * https://www.youtube.com/watch?v=uhZ2Nz8ISp4
