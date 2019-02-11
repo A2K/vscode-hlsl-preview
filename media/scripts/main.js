@@ -20,6 +20,18 @@ lat = 0, lon = 0, phy = 0, theta = 0;
 var windowHalfX = window.innerWidth / 2;
 var windowHalfY = window.innerHeight / 2;
 
+var lastCameraPosition = new THREE.Vector3(-500, 0, 0);
+var lastCameraRotation = new THREE.Euler();
+
+var shaderMode = ShaderMode2D;
+
+scene = new THREE.Scene();
+
+renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    depth: true
+});
+
 window.ifdefs = [];
 
 window.startTime = Date.now();
@@ -78,14 +90,15 @@ function UpdateMaterial()
             Object.keys(newUniforms['_Globals'].value).forEach(((window, key) => {
                 window.uniforms['_Globals'].value[key] = newUniforms['_Globals'].value[key];
             }).bind(this, window));
-        }
 
-        Object.keys(window.uniforms['_Globals'].value).forEach(key => {
-            if (InternalParameters.indexOf(key) >= 0) return;
-            if (!(key in newUniforms['_Globals'].value)) {
-                delete window.uniforms['_Globals'].value[key];
-            }
-        });
+            Object.keys(window.uniforms['_Globals'].value).forEach(key => {
+                if (InternalParameters.indexOf(key) >= 0) return;
+                if (!(key in newUniforms['_Globals'].value)) {
+                    delete window.uniforms['_Globals'].value[key];
+                }
+            });
+
+        }
     }
 
     if (window.material)
@@ -163,6 +176,7 @@ window.vertexShaderCode = "";
 window.uniformsDesc = {};
 window.texturesDesc = {};
 
+var lastOpId = 0;
 
 class FileOpener {
 
@@ -170,13 +184,12 @@ class FileOpener {
     {
         this.vscode = vscode;
 
-        this.lastOpId = 0;
         this.pendingOps = {};
     }
 
     open() {
         return new Promise(((resolve, reject) => {
-            let opId = this.lastOpId++;
+            let opId = lastOpId++;
             this.pendingOps[opId] = {
                 resolve: resolve,
                 reject: reject,
@@ -193,7 +206,7 @@ class FileOpener {
 
     load(filename) {
         return new Promise(((resolve, reject) => {
-            let opId = this.lastOpId++;
+            let opId = lastOpId++;
             this.pendingOps[opId] = {
                 resolve: resolve,
                 reject: reject,
@@ -566,11 +579,10 @@ class TextureSettings {
 }
 
 
-class Settings {
-
-
-    constructor() {
-
+class Settings
+{
+    constructor()
+    {
         this.vscode = acquireVsCodeApi();
         this.fileOpener = new FileOpener(this.vscode);
         this.uniforms = {};
@@ -585,17 +597,29 @@ class Settings {
             $('body').append(this.error);
             this.error.hide();
         }
-
     }
 
     init()
     {
         this.vscode.postMessage({
-            type: 'getUniforms'
+            type: 'getUniforms',
+            data: {
+                opId: lastOpId++
+            }
         });
 
         this.vscode.postMessage({
-            type: 'update'
+            type: 'getSettings',
+            data: {
+                opId: lastOpId++
+            }
+        });
+
+        this.vscode.postMessage({
+            type: 'update',
+            data: {
+                opId: lastOpId++
+            }
         });
 
         this.div = $('<div>');
@@ -625,8 +649,6 @@ class Settings {
         this.initialized = true;
 
         this.updateUI();
-
-        this.toggleHidden();
     }
 
     update(uniformsDesc)
@@ -640,6 +662,11 @@ class Settings {
         if (!this.initialized) return;
 
         let div = this.div;
+
+        if (this.modeSwitch)
+        {
+            this.modeSwitch.update();
+        }
 
         if (this.uniformsDesc) {
             let table = this.buildTable(this.uniformsDesc);
@@ -677,16 +704,40 @@ class Settings {
             let startY = e.clientY;
             let transitionOrigValue = this.div.css('transition');
 
-            document.onmouseup = () => {
-                document.onmouseup = null;
-                document.onmousemove = null;
+            let cleanup = () =>
+            {
+                window.onmouseup = null;
+                window.onmousemove = null;
                 this.div.css({
                     transition: transitionOrigValue
                 });
+                this.vscode.postMessage({
+                    type: 'updateSettings',
+                    data: {
+                        settings: {
+                            position: {
+                                left: this.div.css('left'),
+                                top: this.div.css('top')
+                            }
+                        }
+                    }
+                });
             };
-            document.onmousemove = ((e) => {
+
+            window.onmouseup = (e) => {
+
+                e.preventDefault();
+                cleanup();
+            };
+            window.onmousemove = ((e) => {
                 e = e || window.event;
                 e.preventDefault();
+
+                if (e.buttons !== 1)
+                {
+                    cleanup();
+                    return;
+                }
 
                 pos1 = pos3 - e.clientX;
                 pos2 = pos4 - e.clientY;
@@ -739,7 +790,6 @@ class Settings {
 
         let mode2d = $('<div>')
             .addClass('Mode')
-            .addClass('Active')
             .append($('<div>')
                 .addClass('Content')
                 .text('2D'));
@@ -781,14 +831,54 @@ class Settings {
 
         div.append(modeMesh);
 
+        if (shaderMode === ShaderMode2D)
+        {
+            mode2d.addClass('Active');
+        }
+        else if (shaderMode === ShaderModeMesh)
+        {
+            modeMesh.addClass('Active');
+        }
+
+        div.update = ((mode2d, modeMesh) =>
+        {
+            if (shaderMode === ShaderModeMesh)
+            {
+                if (mode2d.hasClass('Active'))
+                {
+                    mode2d.removeClass('Active');
+                }
+                if (!modeMesh.hasClass('Active'))
+                {
+                    modeMesh.addClass('Active');
+                }
+            }
+            else if (shaderMode === ShaderMode2D)
+            {
+                if (modeMesh.hasClass('Active'))
+                {
+                    modeMesh.removeClass('Active');
+                }
+                if (!mode2d.hasClass('Active'))
+                {
+                    mode2d.addClass('Active');
+                }
+            }
+        }).bind(this, mode2d, modeMesh);
+
         return div;
     }
 
-    formatErrorMessage(message) {
+    formatErrorMessage(message)
+    {
         let text = $('<div>');
         text.addClass('errorMesageContent');
         message.split('\n')
         .filter(line => {
+            if (line.startsWith('SPIRV-Cross'))
+            {
+                return true;
+            }
             let re = /^(.*):(\d+):(\d+): (warning|error): (.*)/;
 
             let match = re.exec(line);
@@ -848,6 +938,8 @@ class Settings {
 
     setErrorMessage(error) {
 
+        if (error instanceof Object) error = '';
+
         this.errorMessage = error;
 
         this.error.html('');
@@ -874,49 +966,51 @@ class Settings {
         var button = $('<div id=hide>')
             .addClass('button');
 
-        if (this.hidden) {
-            button.text('🛠');
-        } else {
-            button.text('Hide 🛠');
-        }
+        button.text('🛠');
 
         return button;
     }
 
-    toggleHidden()
+    toggleHidden(animationSpeed = 100)
     {
+        let transitionOrigValue = this.div.css('transition');
+
+        this.div.css('transition', '0s');
+
         if (this.hidden)
         {
-            this.content.show(100, () => {
-                this.button.bind('click', this.toggleHidden.bind(this));
+            this.content.show(animationSpeed, () => {
+                this.div.css('transition', transitionOrigValue);
             });
 
             if (this.div.hasClass('hidden'))  {
                 this.div.removeClass('hidden');
             }
 
-            this.button.text('Hide 🛠');
-            this.button.hide(100);
-
             this.div.unbind('click');
         }
         else
         {
-            this.content.hide(100, () => {
-                this.div.bind('click', this.toggleHidden.bind(this));
+            this.content.hide(animationSpeed, () => {
+                this.div.css('transition', transitionOrigValue);
+                this.div.bind('click', this.toggleHidden.bind(this, animationSpeed));
             });
 
             if (!this.div.hasClass('hidden'))  {
                 this.div.addClass('hidden');
             }
-
-            this.button.text('🛠');
-            this.button.show(100);
-
-            this.button.unbind('click');
         }
 
         this.hidden = !this.hidden;
+
+        this.vscode.postMessage({
+            type: 'updateSettings',
+            data: {
+                settings: {
+                    hidden: this.hidden
+                }
+            }
+        });
     }
 
     buildIfdefField(ifdef)
@@ -1013,8 +1107,8 @@ class Settings {
         return instance;
     }
 
-    getInputFieldForType(type, value, name) {
-
+    getInputFieldForType(type, value, name)
+    {
         let onUpdate = this.onSettingsUpdate.bind(this);
 
         var div = $('<div>')
@@ -1154,8 +1248,10 @@ class Settings {
             return arr;
         }
 
-        if (0 === type.localeCompare("float")) {
-
+        switch(type)
+        {
+        case 'float':
+{
             value = value || 0.0;
 
             var value = makeFloatInput(value)
@@ -1165,9 +1261,10 @@ class Settings {
             div.append(value);
 
             div.data("getValue", (() => value.val()).bind(this, value));
-        }
-
-        if (0 === type.localeCompare("vec2")) {
+}
+        break;
+        case 'vec2':
+{
             div.addClass('vectorInputBox');
 
             value = resize(value, 2);
@@ -1185,10 +1282,10 @@ class Settings {
             div.append(y);
 
             div.data("getValue", ((x, y) => [ x.val(), y.val() ]).bind(this, x, y));
-        }
-
-        if (0 === type.localeCompare("vec3")) {
-
+}
+        break;
+        case 'vec3':
+{
             value = resize(value, 3);
 
             div.addClass('vectorInputBox');
@@ -1212,10 +1309,10 @@ class Settings {
             div.append(z);
 
             div.data('getValue', (() => [ x.val(), y.val(), z.val() ]).bind(this, x, y, z));
-        }
-
-        if (0 === type.localeCompare("vec4")) {
-
+}
+        break;
+        case 'vec4':
+{
             value = resize(value, 4);
 
             div.addClass('vectorInputBox');
@@ -1245,10 +1342,10 @@ class Settings {
             div.append(w);
 
             div.data('getValue', (() => [ x.val(), y.val(), z.val(), w.val() ]).bind(this, x, y, z, w));
-        }
-
-        if (0 === type.localeCompare('t')) {
-
+}
+        break;
+        case 't':
+{
             let table = $('<table>');
             let row = $('<tr>');
             let cell1 = $('<td>');
@@ -1331,14 +1428,18 @@ class Settings {
 
             div.append(table.append(row.append(cell1).append(cell2)));
         }
+        break;
+        }
 
         return div;
     }
 
-    buildUniforms() {
+    buildUniforms()
+    {
         var result = {};
 
-        Object.keys(this.uniforms).forEach(key => {
+        Object.keys(this.uniforms).forEach(key =>
+        {
             let struct = this.uniforms[key];
 
             if (struct['type'] === 't')
@@ -1361,17 +1462,20 @@ class Settings {
         this.uniformsValues = result;
     }
 
-    setUniformsValues(values) {
+    setUniformsValues(values)
+    {
         this.uniformsValues = values;
         this.updateUI();
     }
 
-    setEnabledIfdefs(enabledIfdefs) {
+    setEnabledIfdefs(enabledIfdefs)
+    {
         this.enabledIfdefs = enabledIfdefs;
         this.updateUI();
     }
 
-    onSettingsUpdate() {
+    onSettingsUpdate()
+    {
 
         this.buildUniforms();
 
@@ -1393,20 +1497,26 @@ class Settings {
             data: serializedUniforms
         });
 
-        UpdateMaterial(this.uniformsValues);
+        UpdateMaterial();
     }
 
-    buildField(key, name, type) {
+    buildField(key, name, type)
+    {
         let value = 0;
 
-        if (key) {
-            if (this.uniformsValues[key] && this.uniformsValues[key][name]) {
+        if (key)
+        {
+            if (this.uniformsValues[key] && this.uniformsValues[key][name])
+            {
                 value = this.uniformsValues[key][name];
             }
-        } else if (type === 't') {
-            if (this.uniformsValues) {
-
-                if (name in this.uniformsValues) {
+        }
+        else if (type === 't')
+        {
+            if (this.uniformsValues)
+            {
+                if (name in this.uniformsValues)
+                {
                     value = this.uniformsValues[name];
                 }
             }
@@ -1446,23 +1556,29 @@ function CreateUniformsFromDesc(uniformsDesc, texturesDesc, values)
 
         let value = (values && (key in values)) ? values[key][name] : undefined;
 
-        if (0 === type.localeCompare('float')) {
-            return value || 0.0;
-        } else if (0 === type.localeCompare('vec2')) {
-            if (value) {
-                return new THREE.Vector2(value[0], value[1]);
-            }
-            return new THREE.Vector2(0, 0);
-        } else if (0 === type.localeCompare('vec3')) {
-            if (value) {
-                return new THREE.Vector3(value[0], value[1], value[2]);
-            }
-            return new THREE.Vector3(0, 0, 0);
-        } else if (0 === type.localeCompare('vec4')) {
-            if (value) {
-                return new THREE.Vector4(value[0], value[1], value[2], value[3]);
-            }
-            return new THREE.Vector4(0, 0, 0, 0);
+        switch(type)
+        {
+            case 'float':
+                return parseFloat(value) || 0.0;
+                break;
+            case 'vec2':
+                if (value) {
+                    return new THREE.Vector2(value[0], value[1]);
+                }
+                return new THREE.Vector2(0, 0);
+                break;
+            case 'vec3':
+                if (value) {
+                    return new THREE.Vector3(value[0], value[1], value[2]);
+                }
+                return new THREE.Vector3(0, 0, 0);
+                break;
+            case 'vec4':
+                if (value) {
+                    return new THREE.Vector4(value[0], value[1], value[2], value[3]);
+                }
+                return new THREE.Vector4(0, 0, 0, 0);
+                break;
         }
 
         return undefined;
@@ -1505,14 +1621,20 @@ function CreateUniformsFromDesc(uniformsDesc, texturesDesc, values)
     return newUniforms;
 }
 
-window.addEventListener("message", event => {
-    switch(event.data.command) {
+window.addEventListener("message", event =>
+{
+    switch(event.data.command)
+    {
         case 'updateFragmentShader':
             window.fragmentShaderCode = event.data.data.code;
             window.uniformsDesc = event.data.data.uniforms;
-            window.texturesDesc = event.data.data.textures;
+            if (event.data.data.textures instanceof Object)
+            {
+                window.texturesDesc = event.data.data.textures;
+            }
 
-            if (window.settings) {
+            if (window.settings)
+            {
                 window.settings.update(window.uniformsDesc);
             }
 
@@ -1520,39 +1642,37 @@ window.addEventListener("message", event => {
         break;
         case 'updateVertexShader':
             vertexShaderCode = event.data.data.code;
+            window.uniformsDesc = event.data.data.uniforms;
+            if (window.settings)
+            {
+                window.settings.update(window.uniformsDesc);
+            }
             UpdateMaterial();
         break;
         case 'showErrorMessage':
-            if (window.settings) {
+            if (window.settings)
+            {
                 window.settings.setErrorMessage(event.data.data);
             }
         break;
         case 'loadUniforms':
-            if (window.settings) {
+            if (window.settings)
+            {
                 var deserialized = {};
 
-                Object.keys(event.data.data).forEach(key => {
-                    let field = event.data.data[key];
+                window.settings.setUniformsValues(event.data.data.uniforms);
 
-                    if (field['type'] === 't') {
-                        deserialized[key] = {
-                            type: 't',
-                            settings: field.settings,
-                            filename: field.filename
-                        };
-
-                    } else {
-                        deserialized[key] = field;
-                    }
-                });
-                window.settings.setUniformsValues(deserialized);
-
-                if (window.mesh) {
+                if (window.mesh)
+                {
                     UpdateMaterial();
-                } else {
+                }
+                else
+                {
                     console.log('no mesh created yet');
                 }
-            } else {
+            }
+            else
+            {
                 console.error('window.settings not initialized yet');
             }
         break;
@@ -1566,10 +1686,64 @@ window.addEventListener("message", event => {
         case 'loadFile':
             window.settings.fileOpener.onFileResult(event.data.data);
         break;
+        case 'settings':
+            processSettings(event.data.data);
+        break;
         default:
             console.error('UNKNOWN MESSAGE RECEIVED: ' + JSON.stringify(event));
     }
 });
+
+function processSettings(settings)
+{
+    if ('shaderMode' in settings)
+    {
+        switch(settings.shaderMode)
+        {
+            case 'mesh':
+                SetShaderMode(ShaderModeMesh);
+            break;
+            case '2d':
+                SetShaderMode(ShaderMode2D);
+            break;
+        }
+    }
+    if ('camera' in settings)
+    {
+        lastCameraPosition.set(settings.camera.position.x, settings.camera.position.y, settings.camera.position.z);
+        lastCameraRotation.set(settings.camera.rotation._x, settings.camera.rotation._y, settings.camera.rotation._z, settings.camera.rotation._order);
+
+        if (shaderMode == ShaderModeMesh)
+        {
+            camera.position.copy(lastCameraPosition);
+            camera.rotation.copy(lastCameraRotation);
+        }
+    }
+    if ('settings' in settings)
+    {
+        if ('hidden' in settings.settings)
+        {
+            if (settings.settings.hidden !== window.settings.hidden)
+            {
+                window.settings.toggleHidden(10);
+            }
+        }
+        if ('position' in settings.settings)
+        {
+            window.settings.div.css(settings.settings.position);
+            let left = parseFloat(settings.settings.position.left) || 5;
+            let top = parseFloat(settings.settings.position.top) || 5;
+            if (left < -0) left = 5;
+            if (top < -0) top = 5;
+
+            if (left > window.innerWidth - 125) left = window.innerWidth - window.settings.div.width()*2;
+            if (top > window.innerHeight - 125) top = window.innerHeight - window.settings.div.height() * 2;
+
+            window.settings.div.css('left', left);
+            window.settings.div.css('top', top);
+        }
+    }
+}
 
 function ShaderMode2D()
 {
@@ -1577,48 +1751,84 @@ function ShaderMode2D()
 
     camera.position.set(-1, 0, 0);
 
-    window.vertexShaderCode = document.getElementById( 'vertexShader' ).textContent;
+    if (window.vertexShaderCode === document.getElementById( 'vertexShaderMesh' ).textContent)
+    {
+        window.vertexShaderCode = document.getElementById( 'vertexShader' ).textContent;
+    }
 
     window.mesh = new THREE.Mesh( new THREE.PlaneGeometry( 2, 2 ), window.material );
 
     delete scene.background;
+
+    if (window.settings && window.settings.vscode)
+    {
+        window.settings.vscode.postMessage({
+            type: "updateSettings",
+            data: {
+                shaderMode: '2d'
+            }
+        });
+    }
 }
 
 function ShaderModeMesh()
 {
-    camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 1000 );
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-    camera.position.set(-500, 0, 0);
+    camera.position.copy(lastCameraPosition);
 
-    window.vertexShaderCode = document.getElementById( 'vertexShaderMesh' ).textContent;
+    if (window.vertexShaderCode === document.getElementById( 'vertexShader' ).textContent)
+    {
+        window.vertexShaderCode = document.getElementById( 'vertexShaderMesh' ).textContent;
+    }
 
-    window.mesh = new THREE.Mesh( new THREE.SphereGeometry( 100, 128, 128 ), window.material );
+    window.mesh = new THREE.Mesh(new THREE.SphereGeometry( 100, 256, 256 ), window.material);
 
-    scene.background = new THREE.CubeTextureLoader()
-        .setPath(document.getElementById( 'skyboxPath' ).textContent)
-        .load( [
-            'posx.jpg',
-            'negx.jpg',
-            'posy.jpg',
-            'negy.jpg',
-            'posz.jpg',
-            'negz.jpg'
-        ] );
+    if (scene)
+    {
+        scene.background = new THREE.CubeTextureLoader()
+            .setPath(document.getElementById('skyboxPath').textContent)
+            .load([
+                'posx.jpg',
+                'negx.jpg',
+                'posy.jpg',
+                'negy.jpg',
+                'posz.jpg',
+                'negz.jpg'
+            ]);
 
-    scene.background.generateMipmaps = true;
+        scene.background.generateMipmaps = true;
+    }
+
+    if (window.settings && window.settings.vscode)
+    {
+        window.settings.vscode.postMessage({
+            type: "updateSettings",
+            data: {
+                shaderMode: 'mesh'
+            }
+        });
+    }
+
 }
 
 function SetShaderMode(func)
 {
-    if (window.mesh) {
+    if (window.mesh)
+    {
         scene.remove(window.mesh);
     }
 
     func();
 
+    window.shaderMode = func;
+
     camera.lookAt(new THREE.Vector3(0,0,0));
 
-    scene.add(window.mesh);
+    if (scene)
+    {
+        scene.add(window.mesh);
+    }
 
     if (func == ShaderModeMesh)
     {
@@ -1651,20 +1861,15 @@ function SetShaderMode(func)
     }
 
     UpdateMaterial();
+
+    window.settings.updateUI();
 }
 
 function init()
 {
     container = document.getElementById( 'content' );
 
-    scene = new THREE.Scene();
-
-    renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        depth: true
-    });
-
-    SetShaderMode(ShaderMode2D);
+    SetShaderMode(shaderMode);
 
     UpdateMaterial();
 
@@ -1672,11 +1877,14 @@ function init()
 
     renderer.setSize( window.innerWidth, window.innerHeight );
 
-    $(window).resize(() => {
-        if (camera instanceof THREE.PerspectiveCamera) {
+    $(window).resize(() =>
+    {
+        if (camera instanceof THREE.PerspectiveCamera)
+        {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
         }
+
         renderer.setSize( window.innerWidth, window.innerHeight );
     });
 }
@@ -1698,21 +1906,44 @@ function render()
     window.uniforms['_Globals'].value.iResolution.set(window.innerWidth, window.innerHeight);
 
     renderer.render(scene, camera);
+
+    camera.position.onChange
+    if (shaderMode === ShaderModeMesh)
+    {
+        if ((lastCameraPosition.distanceTo(camera.position) > 0.1))
+        {
+            lastCameraPosition.copy(camera.position);
+            lastCameraRotation.copy(camera.rotation);
+
+            window.settings.vscode.postMessage({
+                type: 'updateSettings',
+                data: {
+                    camera: {
+                        position: lastCameraPosition,
+                        rotation: lastCameraRotation
+                    }
+                }
+            });
+        }
+    }
 }
 
 $(document).ready(() =>
 {
-    if (!window.vertexShaderCode) {
+    if (!window.vertexShaderCode)
+    {
         window.vertexShaderCode = document.getElementById( 'vertexShader' ).textContent;
     }
 
-    if (!window.fragmentShaderCode) {
+    if (!window.fragmentShaderCode)
+    {
         window.fragmentShaderCode = document.getElementById( 'fragmentShader' ).textContent;
     }
 
     window.settings.init();
 
-    if (window.uniformsDesc) {
+    if (window.uniformsDesc)
+    {
         window.settings.update(window.uniformsDesc);
     }
 

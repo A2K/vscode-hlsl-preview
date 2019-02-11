@@ -65,15 +65,16 @@ export class Throttler<T> {
     }
 }
 
-export class Delayer<T> {
-
+export class Delayer<T>
+{
     public defaultDelay: number;
     private timeout: NodeJS.Timer | null;
     private completionPromise: Promise<T> | null;
     private onResolve: ((value: T | Thenable<T> | undefined) => void) | null;
     private task: ITask<T> | null;
 
-    constructor(defaultDelay: number) {
+    constructor(defaultDelay: number)
+    {
         this.defaultDelay = defaultDelay;
         this.timeout = null;
         this.completionPromise = null;
@@ -81,14 +82,18 @@ export class Delayer<T> {
         this.task = null;
     }
 
-    public trigger(task: ITask<T>, delay: number = this.defaultDelay): Promise<T> {
+    public trigger(task: ITask<T>, delay: number = this.defaultDelay): Promise<T>
+    {
         this.task = task;
         this.cancelTimeout();
 
-        if (!this.completionPromise) {
-            this.completionPromise = new Promise<T>((resolve, reject) => {
+        if (!this.completionPromise)
+        {
+            this.completionPromise = new Promise<T>((resolve, reject) =>
+            {
                 this.onResolve = resolve;
-            }).then(() => {
+            }).then(() =>
+            {
                 this.completionPromise = null;
                 this.onResolve = null;
 
@@ -104,7 +109,8 @@ export class Delayer<T> {
             });
         }
 
-        this.timeout = setTimeout(() => {
+        this.timeout = setTimeout(() =>
+        {
             this.timeout = null;
             if (this.onResolve) {
                 this.onResolve(undefined);
@@ -114,20 +120,25 @@ export class Delayer<T> {
         return this.completionPromise;
     }
 
-    public isTriggered(): boolean {
+    public isTriggered(): boolean
+    {
         return this.timeout !== null;
     }
 
-    public cancel(): void {
+    public cancel(): void
+    {
         this.cancelTimeout();
 
-        if (this.completionPromise) {
+        if (this.completionPromise)
+        {
             this.completionPromise = null;
         }
     }
 
-    private cancelTimeout(): void {
-        if (this.timeout !== null) {
+    private cancelTimeout(): void
+    {
+        if (this.timeout !== null)
+        {
             clearTimeout(this.timeout);
             this.timeout = null;
         }
@@ -141,17 +152,19 @@ export class Delayer<T> {
  * Simply combine the two mail man strategies from the Throttler and Delayer
  * helpers, for an analogy.
  */
-export class ThrottledDelayer<T> extends Delayer<Promise<T>> {
-
+export default class ThrottledDelayer<T> extends Delayer<Promise<T>>
+{
     private throttler: Throttler<T>;
 
-    constructor(defaultDelay: number) {
+    constructor(defaultDelay: number)
+    {
         super(defaultDelay);
 
         this.throttler = new Throttler();
     }
 
-    public trigger(promiseFactory: ITask<Promise<T>>, delay?: number): Promise<Promise<T>> {
+    public trigger(promiseFactory: ITask<Promise<T>>, delay?: number): Promise<Promise<T>>
+    {
         return super.trigger(() => this.throttler.queue(promiseFactory), delay);
     }
 }

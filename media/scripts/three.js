@@ -16641,7 +16641,8 @@
 
 		if ( gl.getShaderInfoLog( shader ) !== '' ) {
 
-			console.warn( 'THREE.WebGLShader: gl.getShaderInfoLog()', type === 35633 ? 'vertex' : 'fragment', gl.getShaderInfoLog( shader ), addLineNumbers( string ) );
+			console.warn( 'THREE.WebGLShader: gl.getShaderInfoLog(`.)', type === 35633 ? 'vertex' : 'fragment', gl.getShaderInfoLog( shader ), addLineNumbers( string ) );
+			console.error( 'ERROR:' + gl.getShaderInfoLog( shader ));
 
 		}
 
@@ -17262,6 +17263,7 @@
 		} else if ( programLog !== '' ) {
 
 			console.warn( 'THREE.WebGLProgram: gl.getProgramInfoLog()', programLog );
+			console.error(programLog);
 
 		} else if ( vertexLog === '' || fragmentLog === '' ) {
 

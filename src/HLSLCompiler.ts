@@ -1,12 +1,18 @@
 'use strict';
 
-import * as cp from 'child_process';
 import * as vscode from 'vscode';
+
 import * as fs from 'fs';
+import * as cp from 'child_process';
 import * as tempfile from 'tempfile';
 
+import ShaderDocument from './ShaderDocument';
 
-export default class HLSLCompiler {
+import { ShaderType } from './Enums';
+
+
+export default class HLSLCompiler
+{
 
     private executable: string = "dxc";
 
@@ -14,15 +20,15 @@ export default class HLSLCompiler {
 
     private includeDirs: string[] = [];
 
-    private defaultArgs: string[] = [ "-Od", "-Ges", "-spirv", "-fspv-reflect" ];    
-    //"-fspv-target-env=vulkan1.1"
+    private defaultArgs: string[] = [ "-Od", "-Ges", "-spirv", "-fspv-reflect", "-fspv-target-env=vulkan1.1" ];
 
-    constructor() {
+    constructor()
+    {
         this.loadConfiguration();
     }
 
-    private processErrorMessage(filename: string, tmpFilename: string, message: string, lineOffset: number): string {
-
+    private processErrorMessage(filename: string, tmpFilename: string, message: string, lineOffset: number): string
+    {
         return message.split(/\n/g).map(line => {
             if (line.toLowerCase().startsWith(tmpFilename.toLowerCase())) {
                 let errorMessage = line.substr(tmpFilename.length);
@@ -34,47 +40,43 @@ export default class HLSLCompiler {
         }).join('\n');
     }
 
-    /*
-    private GetIfdefs(text: string): string[] 
+    private Preprocess(textDocument: vscode.TextDocument): string
     {
-        let ifdefs:string[] = [];
-
-        let comment_re = /(\"[^\"]*\"(?!\\))|(\/\/[^\n]*$|\/(?!\\)\*[\s\S]*?\*(?!\\)\/)/mg;
-        let nocomments = text.replace(comment_re, '');
-        
-        const re = /^\s*#if(?:def\s+|\s+defined\(\s*)(\w+)\)?\s*$/gm;
-        var m;
-        while (m = re.exec(nocomments)) {
-            let name = m[1];
-            if (ifdefs.indexOf(name) < 0) {
-                ifdefs.push(name);
-            }
-        }
-
-        return ifdefs;
-    }
-    */
-
-    private Preprocess(textDocument: vscode.TextDocument): string {
         let text = textDocument.getText();
-        if (textDocument.fileName.endsWith(".ush")) {
+        if (textDocument.fileName.endsWith(".ush"))
+        {
             text = text.replace(/#pragma\s+once[^\n]*\n/g, '//#pragma once\n');
         }
 
         return text;
     }
 
-    public CompileToSPIRV(textDocument: vscode.TextDocument, entryPointName: string, enabledIfdefs: string[], profile: string = "ps_6_4"): Promise<string> {
+    private GetProfileForShaderType(shaderType: ShaderType): string
+    {
+        switch(shaderType)
+        {
+            case ShaderType.pixel:
+                return 'ps_6_4';
+            case ShaderType.vertex:
+                return 'vs_6_4';
+            default:
+                return 'ps_6_4';
+        }
+    }
 
-        return new Promise<string>((resolve, reject) => {
-
+    public CompileToSPIRV(shaderDocument: ShaderDocument)
+    {
+        return new Promise<string>((resolve, reject) =>
+        {
             let filename = tempfile('.hlsl');
 
             let filenameSPIRV = tempfile('.spv');
 
-            let cleanup = ((filename: string, filenameSPIRV: string, removeSPIRV: boolean = false) => {
+            let cleanup = ((filename: string, filenameSPIRV: string, removeSPIRV: boolean = false) =>
+            {
                 fs.unlink(filename, (err: Error) => { });
-                if (removeSPIRV) {
+                if (removeSPIRV)
+                {
                     fs.unlink(filenameSPIRV, (err: Error) => { });
                 }
             }).bind(this, filename, filenameSPIRV);
@@ -91,37 +93,43 @@ export default class HLSLCompiler {
 
             var predefined: { [key: string]: string } = {};
 
-            let text = this.Preprocess(textDocument);
+            let text = this.Preprocess(shaderDocument.document);
 
             var m;
-            while (m = re.exec(text)) {
-
-                if (m.length === 1) {
+            while (m = re.exec(text))
+            {
+                if (m.length === 1)
+                {
                     continue;
                 }
 
                 var typeName: string = 'float';
 
-                if (m.length === 3 && typeof (m[1]) !== 'undefined') {
+                if (m.length === 3 && typeof (m[1]) !== 'undefined')
+                {
                     typeName = m[1];
                 }
 
-                ((m.length === 2) ? m[1] : m[2]).split(/\s*,\s*/).forEach((symbol: string) => {
+                ((m.length === 2) ? m[1] : m[2]).split(/\s*,\s*/).forEach((symbol: string) =>
+                {
                     symbol = symbol.trim();
                     var existingSymbol = symbols.find((s) => 0 === s.localeCompare(symbol));
-                    if (typeof (existingSymbol) === 'undefined' || null === existingSymbol) {
-                        symbols.push(symbol);                        
+                    if (typeof (existingSymbol) === 'undefined' || null === existingSymbol)
+                    {
+                        symbols.push(symbol);
                         predefined[symbol] = typeName;
                     }
                 });
             }
 
-            this.includeDirs.forEach(includeDir => {
+            this.includeDirs.forEach(includeDir =>
+            {
                 args.push("-I");
                 args.push(includeDir);
             });
 
-            enabledIfdefs.forEach(ifdef => {
+            shaderDocument.enabledIfdefs.forEach(ifdef =>
+            {
                 args.push("-D");
                 args.push(ifdef);
             });
@@ -130,10 +138,10 @@ export default class HLSLCompiler {
             args.push("VSCODE_HLSL_PREVIEW");
 
             args.push('-T');
-            args.push(profile);
+            args.push(this.GetProfileForShaderType(shaderDocument.shaderType));
 
             args.push('-E');
-            args.push(entryPointName);
+            args.push(shaderDocument.entryPointName);
 
             args.push('-Fo');
             args.push(filenameSPIRV);
@@ -142,16 +150,18 @@ export default class HLSLCompiler {
 
             var addedLines = 0;
             let prefix: string = "";
-            Object.keys(predefined).forEach((key) => {
+            Object.keys(predefined).forEach((key) =>
+            {
                 prefix += predefined[key] + ' ' + key + ';\n';
                 addedLines = addedLines + 1;
             });
 
             text = prefix + text;
 
-            fs.writeFile(filename, Buffer.from(text, 'utf8'), ((err: Error) => {
-
-                if (err) {
+            fs.writeFile(filename, Buffer.from(text, 'utf8'), ((err: Error) =>
+            {
+                if (err)
+                {
                     console.log('error:', err);
                     cleanup(true);
                     reject(err);
@@ -162,38 +172,51 @@ export default class HLSLCompiler {
 
                 let childProcess = cp.spawn(executable, args, options);
 
-                childProcess.on('error', (error: Error) => {
+                childProcess.on('error', (error: Error) =>
+                {
                     console.error("Failed to start DXC:", error);
-                    if (this.executableNotFound) {
+
+                    if (this.executableNotFound)
+                    {
                         console.error("DXC executable not found");
                         cleanup(true);
                         reject(error);
                         return;
                     }
+
                     var message: string;
-                    if ((<any>error).code === 'ENOENT') {
+
+                    if ((<any>error).code === 'ENOENT')
+                    {
                         message = `Cannot preview the HLSL file: The 'dxc' program was not found. Use the 'hlsl.preview.dxcExecutablePath' setting to configure the location of 'dxc'`;
-                    } else {
+                    }
+                    else
+                    {
                         message = error.message ? error.message : `Failed to run dxc using path: ${executable}. Reason is unknown.`;
                     }
-                    console.log(message);
+
                     this.executableNotFound = true;
+
                     cleanup(true);
                     reject(message);
                 });
 
                 let stderr = "";
-                childProcess.stderr.on('data', (buffer: Buffer) => {
+                childProcess.stderr.on('data', (buffer: Buffer) =>
+                {
                     stderr += buffer.toString();
                 });
 
-                childProcess.on('exit', (e) => {
-
+                childProcess.on('exit', (e) =>
+                {
                     cleanup();
-                    if (e === 0) {
+                    if (e === 0)
+                    {
                         resolve(filenameSPIRV);
-                    } else {
-                        let basename = textDocument.fileName.split(/[/\\]/).pop() || textDocument.fileName;
+                    }
+                    else
+                    {
+                        let basename = shaderDocument.fileName.split(/[/\\]/).pop() || shaderDocument.fileName;
                         reject(this.processErrorMessage(basename, filename, stderr, -addedLines));
                     }
                 });
@@ -202,10 +225,12 @@ export default class HLSLCompiler {
         });
     }
 
-    private loadConfiguration(): void {
+    private loadConfiguration(): void
+    {
         let section = vscode.workspace.getConfiguration('hlsl');
 
-        if (section) {
+        if (section)
+        {
             this.executable = section.get<string>('preview.dxcExecutablePath', this.executable);
             this.defaultArgs = section.get<string[]>('preview.dxcDefaultArgs', this.defaultArgs);
             this.includeDirs = section.get<string[]>('preview.includeDirs') || [];
