@@ -34,12 +34,12 @@ These variables values will be automatically updated every frame. They still nee
 * `float iTime`
 * `float2 iResolution`
 #### Vertex shader built-in variables
-* `mat4 modelMatrix`
-* `mat4 modelViewMatrix`
-* `mat4 projectionMatrix`
-* `mat4 viewMatrix`
-* `mat3 normalMatrix`
-* `vec3 cameraPosition`
+* `float4x4 modelMatrix`
+* `float4x4 modelViewMatrix`
+* `float4x4 projectionMatrix`
+* `float4x4 viewMatrix`
+* `float3x3 normalMatrix`
+* `float3 cameraPosition`
 
 ## Limitations
 * `uint`s are not supported.
