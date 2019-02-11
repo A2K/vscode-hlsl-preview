@@ -643,6 +643,10 @@ class Settings
 
         this.button = this.makeHideButton();
         this.div.append(this.button);
+        if (!this.hidden)
+        {
+            this.button.hide();
+        }
 
         $('body').append(this.div);
 
@@ -968,6 +972,8 @@ class Settings
 
         button.text('🛠');
 
+        button.on('click', () => this.toggleHidden());
+
         return button;
     }
 
@@ -988,6 +994,7 @@ class Settings
             }
 
             this.div.unbind('click');
+            this.button.hide(animationSpeed);
         }
         else
         {
@@ -999,6 +1006,7 @@ class Settings
             if (!this.div.hasClass('hidden'))  {
                 this.div.addClass('hidden');
             }
+            this.button.show(animationSpeed);
         }
 
         this.hidden = !this.hidden;
@@ -1643,10 +1651,6 @@ window.addEventListener("message", event =>
         case 'updateVertexShader':
             vertexShaderCode = event.data.data.code;
             window.uniformsDesc = event.data.data.uniforms;
-            if (event.data.data.textures instanceof Object)
-            {
-                window.texturesDesc = event.data.data.textures;
-            }
             if (window.settings)
             {
                 window.settings.update(window.uniformsDesc);
