@@ -2,7 +2,8 @@
 
 import * as fs from 'fs';
 
-import GLSLCompiler, { GLSLCode } from './GLSLCompiler';
+import GLSLCode from './GLSLCode';
+import GLSLCompiler from './GLSLCompiler';
 import HLSLCompiler from './HLSLCompiler';
 import ShaderDocument from './ShaderDocument';
 
@@ -12,11 +13,24 @@ export default class HLSLtoGLSLRecompiler {
     private hlsl: HLSLCompiler = new HLSLCompiler();
     private glsl: GLSLCompiler = new GLSLCompiler();
 
+    public canUseNativeBinaries(): Promise<boolean>
+    {
+        return this.hlsl.canUseNativeBinary().then(
+            (value: Boolean) => value ? this.glsl.canUseNativeBinary() : false
+        );
+    }
+
+    public loadConfiguration()
+    {
+        this.glsl.loadConfiguration();
+        this.hlsl.loadConfiguration();
+    }
+
     public HLSL2GLSL(shaderDocument: ShaderDocument): Promise<GLSLCode>
     {
         return new Promise<GLSLCode>((resolve, reject) =>
         {
-            if (shaderDocument.code && !shaderDocument.needsUpdate && !shaderDocument.isBeingUpdated)
+            if (shaderDocument.lastCompiledVersion === shaderDocument.version && shaderDocument.glslCode)
             {
                 resolve(shaderDocument.glslCode);
                 return;

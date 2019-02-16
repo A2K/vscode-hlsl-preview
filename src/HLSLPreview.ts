@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 
+import * as fs from 'fs';
 import * as path from 'path';
 
-import { GLSLCode } from './GLSLCompiler';
+import GLSLCode from './GLSLCode';
 import ObjectMerger from './ObjectMerger';
 import ShaderDocument from './ShaderDocument';
 import HLSLtoGLSLRecompiler from './HLSLtoGLSLRecompiler';
@@ -11,6 +12,10 @@ import { ShaderType, RunTrigger } from './Enums';
 import { GetWebviewContent } from './WebViewContent';
 
 import * as Utils from './Utils';
+import HLSLCompiler from './HLSLCompiler';
+
+import * as Base64 from 'base64-js';
+import WASMWebServer from './WASMWebServer';
 
 
 export default class HLSLPreview
@@ -31,6 +36,31 @@ export default class HLSLPreview
 
     private delay: number = 250;
 
+    private useNativeBinaries: boolean = true;
+
+    private panelReady: boolean = false;
+
+    private wasmWebServer: WASMWebServer | undefined;
+
+    private useWASMWebServer: boolean = true;
+
+    private updateWASMWebServer()
+    {
+        let isRunning: boolean = typeof(this.wasmWebServer) !== 'undefined' && this.wasmWebServer !== null;
+
+        let shouldBeRunning:boolean = (!this.useNativeBinaries) && this.useWASMWebServer;
+
+        if (this.wasmWebServer && isRunning && !shouldBeRunning)
+        {
+            this.wasmWebServer.dispose();
+            delete this.wasmWebServer;
+        }
+        else if (!isRunning && shouldBeRunning)
+        {
+            this.wasmWebServer = new WASMWebServer(this.context);
+        }
+    }
+
     private GetNextDocumentIndex(): number
     {
         return this._lastShaderDocumentIndex++;
@@ -38,15 +68,76 @@ export default class HLSLPreview
 
     constructor(context: vscode.ExtensionContext)
     {
-		this.context = context;
-		let section = vscode.workspace.getConfiguration('hlsl');
+        this.context = context;
+        this.loadConfiguration();
+    }
+
+    public loadConfiguration()
+    {
+        let section = vscode.workspace.getConfiguration('hlsl');
 
         if (section)
         {
             this.trigger = RunTrigger.from(section.get<string>('preview.trigger', RunTrigger.strings.onType));
-            this.delay = section.get<number>('preview.delay', 250);
-		}
-	}
+            this.delay = section.get<number>('preview.delay', this.delay);
+            this.useNativeBinaries = section.get<boolean>('preview.useNativeBinaries', true);
+            this.useWASMWebServer = section.get<boolean>('preview.useWebServer', true);
+        }
+
+        this.recompiler.loadConfiguration();
+
+        if (this.useNativeBinaries)
+        {
+            this.recompiler.canUseNativeBinaries().then(((canUseNativeBinaries: boolean) =>
+            {
+                if (!canUseNativeBinaries)
+                {
+                    console.error("native binaries not available");
+                    this.useNativeBinaries = false;
+                }
+
+                this.updateWASMWebServer();
+
+                if (this.panel)
+                {
+                    this.updateWebviewContent();
+                }
+
+            }).bind(this));
+        }
+        else
+        {
+            this.updateWASMWebServer();
+
+            if (this.panel)
+            {
+                this.updateWebviewContent();
+            }
+        }
+    }
+
+    public updateWebviewContent()
+    {
+        if (!this.panel)
+        {
+            return;
+        }
+
+        if (this.useWASMWebServer && this.wasmWebServer)
+        {
+            this.wasmWebServer.getPort().then(port =>
+            {
+                if (this.panel)
+                {
+                    this.panel.webview.html = GetWebviewContent(this.context, this.useNativeBinaries, true, port);
+                }
+            });
+        }
+        else
+        {
+            this.panel.webview.html = GetWebviewContent(this.context, this.useNativeBinaries, false, 0);
+        }
+    }
 
     public onStartCommand()
     {
@@ -72,7 +163,7 @@ export default class HLSLPreview
 		let defaultEntryPoint:string = this.context.workspaceState.get('hlsl.preview.entrypoint') || "main";
 
 		let dialogOptions: vscode.InputBoxOptions = {
-			prompt: "Entry point name: ",
+			prompt: "Entry point name (e.g. main)",
 			placeHolder: 'main',
 			value: defaultEntryPoint,
 			valueSelection: [0, defaultEntryPoint.length],
@@ -212,6 +303,8 @@ export default class HLSLPreview
 
 	public StartPreview(): void
 	{
+        this.loadConfiguration();
+
 		if (Object.keys(this.documents).length === 0)
 		{
 			console.error('HLSLPreview: no documents to preview');
@@ -267,12 +360,152 @@ export default class HLSLPreview
 				}
             );
 
-			this.panel.webview.html = GetWebviewContent(this.context);
+            this.updateWebviewContent();
 
             this.panel.webview.onDidReceiveMessage(((e: any) =>
             {
                 switch (e.type)
                 {
+                    case 'selectSaveImage':
+                    {
+                        let dialogOptions: vscode.InputBoxOptions = {
+                            prompt: "Image resolution (default: 1024) ",
+                            placeHolder: 'examples: 4096, 1024x1024, 1920 by 1080'
+                        };
+
+                        vscode.window.showInputBox(dialogOptions).then((value: string | undefined) =>
+                        {
+                            if (typeof(value) === 'undefined')
+                            {
+                                return;
+                            }
+
+                            let parts = (value || '1024x1024').split(/[\D\s]+/);
+
+                            const DefaultSize = 1024;
+
+                            let width = DefaultSize;
+                            let height = DefaultSize;
+
+                            let m;
+
+                            if (m = /(\d+)k/.exec(value))
+                            {
+                                width = height = (parseInt(m[1]) || 1) * 1024;
+                            }
+                            else if (parts.length === 1)
+                            {
+                                width = height = parseInt(parts[0]) || DefaultSize;
+                            }
+                            else if (parts.length === 2)
+                            {
+                                width = parseInt(parts[0]) || DefaultSize;
+                                height = parseInt(parts[1]) || DefaultSize;
+                            }
+
+                            let options: vscode.SaveDialogOptions = {
+                                filters: {
+                                    'PNG': [ 'png' ],
+                                    'JPEG': [ 'jpg', 'jpeg' ],
+                                    'WebP': [ 'webp' ],
+                                    'Bitmap': [ 'bmp' ]
+                                }
+                            };
+
+                            vscode.window.showSaveDialog(options).then((uri: vscode.Uri | undefined) =>
+                            {
+                                if (uri && this.panel)
+                                {
+                                    let path = uri.path;
+                                    if (/^\/[A-Z]:\/.*$/.test(path))
+                                    {
+                                        path = path.substr(1);
+                                    }
+
+                                    let mimeType = 'image/png';
+
+                                    switch(path.split('.').pop())
+                                    {
+                                        case 'jpg':
+                                        case 'jpeg':
+                                            mimeType = 'image/jpeg';
+                                        break;
+                                        case 'bmp':
+                                            mimeType = 'image/bmp';
+                                        break;
+                                        case 'webp':
+                                            mimeType = 'image/webp';
+                                        break;
+                                    }
+
+                                    this.panel.webview.postMessage({
+                                        command: "saveImage",
+                                        data: {
+                                            mimeType: mimeType,
+                                            path: path,
+                                            width: width,
+                                            height: height
+                                        }
+                                    });
+                                }
+                            }, () => {
+
+                            });
+                        });
+                    }
+                    break;
+                    case 'saveImage':
+                    {
+                        let data = e.data;
+
+                        let image = data.image.substr(data.image.indexOf(',') + 1);
+                        image = Base64.toByteArray(image);
+
+                        fs.writeFile(data.path, image, {
+                            encoding: null,
+                            flag: 'w'
+                        }, (err) => {
+                            if (err)
+                            {
+                                vscode.window.showErrorMessage(`failed to save image: ${err}`);
+                            }
+                        });
+                    }
+                    break;
+                    case 'ready':
+                        this.panelReady = true;
+                    break;
+                    case 'shader':
+                    {
+                        let documentId = e.data.documentId;
+                        let shaderDocument = this.GetShaderDocumentById(documentId);
+                        if (shaderDocument)
+                        {
+                            if (e.data.success)// && e.data.version > (shaderDocument.lastUpdateVersion || 0))
+                            {
+                                shaderDocument.glslCode = new GLSLCode(shaderDocument, e.data.glsl, e.data.reflection);
+                                shaderDocument.lastUpdateVersion = e.data.version;
+                            }
+
+                            for (let i = shaderDocument.promises.length - 1; i >= 0; --i)
+                            {
+                                let promise = shaderDocument.promises[i];
+                                if (promise.version <= e.data.version)
+                                {
+                                    if (e.data.success)
+                                    {
+                                        promise.resolve(shaderDocument);
+                                    }
+                                    else
+                                    {
+                                        promise.reject(e.data.error);
+                                    }
+                                    shaderDocument.promises.splice(i, 1);
+                                }
+                            }
+                        }
+                    }
+                    break;
 					case 'getUniforms':
 						if (this.panel)
 						{
@@ -306,7 +539,9 @@ export default class HLSLPreview
                             });
 						}
 					break;
-					case 'update':
+                    case 'update':
+                    {
+                        this.loadConfiguration();
 						if ((e.data instanceof Object) && (e.data.documentIds instanceof Array))
 						{
 							let documentsToUpdate = this.GetShaderDocumentsByIds(e.data.documentIds);
@@ -318,10 +553,10 @@ export default class HLSLPreview
 						else
 						{
 							this.UpdateShaders(this.documents);
-						}
+                        }
+                    }
 					break;
                     case 'updateUniforms':
-                        console.log('updateUniforms', e.data);
                         Object.keys(this.documents).map(key => this.documents[key]).forEach(
                             (shaderDocument: ShaderDocument) =>
                             {
@@ -331,7 +566,11 @@ export default class HLSLPreview
                             }
                         );
 					break;
-					case 'updateEnabledIfdefs':
+                    case 'updateEnabledIfdefs':
+
+                        let newEnabledIfdefs = (e.data instanceof Array) ? e.data :
+                            ((e.data && e.data.ifdefs instanceof Array) ? e.data.ifdefs : []);
+
                         let shaderDocuments = ((e.data instanceof Object) && (e.data.documentIds instanceof Array))
                             ? this.GetShaderDocumentsByIds(e.data.documentIds)
                             : this.documents;
@@ -341,7 +580,6 @@ export default class HLSLPreview
                         Object.keys(shaderDocuments).map(key => this.documents[key]).forEach(
                             (shaderDocument: ShaderDocument) =>
                             {
-                                let newEnabledIfdefs = (e.data.ifdefs instanceof Array) ? e.data.ifdefs : [];
 
                                 shaderDocument.enabledIfdefs = newEnabledIfdefs;
 
@@ -415,7 +653,7 @@ export default class HLSLPreview
                             }
                         ).bind(this, opId, filename));
 					break;
-					case 'goto':
+                    case 'goto':
 						let lineNumber = parseInt(e.data.line);
 						let columnNumber = parseInt(e.data.column);
 						let shaderDocument = this.GetShaderDocumentById(e.data.documentId);
@@ -426,19 +664,28 @@ export default class HLSLPreview
 								{
 									if (editor && shaderDocument && (editor.document === shaderDocument.document))
 									{
-										let range = editor.document.lineAt(lineNumber-1).range;
-										//editor.selection = new vscode.Selection(range.start, range.end);
+                                        let range = editor.document.lineAt(lineNumber-1).range;
+
 										editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
 
 										let cursor = editor.selection.active;
 										let pos = cursor.with(lineNumber - 1, columnNumber - 1);
-										editor.selection = new vscode.Selection(pos, pos);
+                                        editor.selection = new vscode.Selection(pos, pos);
+
+
+                                        let cmd = 'workbench.action.focusFirstEditorGroup';
+                                        if (editor.viewColumn === 2)
+                                        {
+                                            cmd = 'workbench.action.focusSecondEditorGroup';
+                                        }
+
+                                        vscode.commands.executeCommand(cmd);
 									}
 								}
 							);
 						}
                     break;
-                    case 'updateSettings':
+                    case 'loadConfiguration':
                         let key = "settings";
 
                         let settings = this.context.workspaceState.get<object>(key, {});
@@ -459,11 +706,6 @@ export default class HLSLPreview
 				}
             }).bind(this));
 
-            this.panel.webview.postMessage({
-                command: "loadUniforms",
-                data: this.LoadDocumentsUniforms(this.documents)
-            });
-
 			this.panel.onDidDispose(
 				() => {
 					this.panel = undefined;
@@ -472,8 +714,19 @@ export default class HLSLPreview
 			);
         }
 
-        this.UpdateShaders(this.documents);
-
+        this.UpdateShaders(this.documents).then(() =>
+        {
+            if (this.panel)
+            {
+                this.panel.webview.postMessage({
+                    command: "loadUniforms",
+                    data: {
+                        uniforms: this.LoadDocumentsUniforms(this.documents),
+                        textures: this.LoadDocumentsTextures(this.documents)
+                    }
+                });
+            }
+        });
 	}
 
     public LoadDocumentsUniformsDesc(shaderDocuments: { [key:string]: ShaderDocument }): object
@@ -538,13 +791,119 @@ export default class HLSLPreview
         return new ThrottledDelayer<void | GLSLCode>(this.delay).trigger(
             () => this.DoUpdateShaders().catch((err) => {})
 		);
-	}
+    }
 
-    private DoUpdateShaders(): Promise<GLSLCode>
+    public postMessage(command: string, data: any)
     {
-        return new Promise<GLSLCode>((resolve, reject) =>
+        if (this.panel)
         {
-			let documentsToUpdate = Object.keys(this.documents).map(key => this.documents[key]).filter(doc => doc.needsUpdate && !doc.isBeingUpdated);
+            data = data || {};
+            this.panel.webview.postMessage({
+                command: command,
+                data: data
+            });
+        }
+    }
+
+    private UpdateShaderDocumentEmscripten(shaderDocument: ShaderDocument): Promise<void>
+    {
+        return new Promise<void>((resolve, reject) =>
+        {
+            let compileDocumentVersion = shaderDocument.version;
+
+            if (!this.panel)
+            {
+                reject("no preview panel");
+                return;
+            }
+
+            shaderDocument.needsUpdate = false;
+            // shaderDocument.isBeingUpdated = true;
+            shaderDocument.lastCompiledVersion = compileDocumentVersion;
+
+            this.panel.webview.postMessage({
+                command: 'updateIfdefs',
+                data: {
+                    documentId: shaderDocument.documentId,
+                    ifdefs: shaderDocument.ifdefs,
+                    enabledIfdefs: shaderDocument.enabledIfdefs
+                }
+            });
+
+            let metadata = HLSLCompiler.Preprocess(shaderDocument);
+            let text = metadata.text;
+            delete metadata.text;
+
+            shaderDocument.promises.push({ resolve: resolve, reject: (error: any) => {
+                reject(HLSLCompiler.ProcessErrorMessage(shaderDocument.fileBaseName, `src_${shaderDocument.documentId}`, error, metadata));
+            }, version: shaderDocument.version });
+
+            this.panel.webview.postMessage({
+                command: 'compileShader',
+                data: {
+                    documentId: shaderDocument.documentId,
+                    version: shaderDocument.version,
+                    code: text,
+                    filename: `src_${shaderDocument.documentId}`,
+                    reflect: true,
+                    entryPoint: shaderDocument.entryPointName,
+                    defines: shaderDocument.enabledIfdefs,
+                    profile: shaderDocument.shaderType === ShaderType.pixel ? 'ps_6_4' : 'vs_6_4',
+                    metadata: metadata
+                }
+            });
+        });
+    }
+
+    private UpdateShaderDocumentBinary(shaderDocument: ShaderDocument): Promise<void>
+    {
+        return new Promise<void>((resolve, reject) =>
+        {
+            let compileDocumentVersion = shaderDocument.version;
+            if (this.panel)
+            {
+                this.panel.webview.postMessage({
+                    command: 'updateIfdefs',
+                    data: {
+                        documentId: shaderDocument.documentId,
+                        ifdefs: shaderDocument.ifdefs,
+                        enabledIfdefs: shaderDocument.enabledIfdefs
+                    }
+                });
+            }
+            this.recompiler.HLSL2GLSL(shaderDocument).then(() => {
+                shaderDocument.lastUpdateVersion = compileDocumentVersion;
+                return resolve();
+            }, reject);
+        });
+    }
+
+    private UpdateShaderDocument(shaderDocument: ShaderDocument): Promise<void>
+    {
+        if (this.useNativeBinaries)
+        {
+            return this.UpdateShaderDocumentBinary(shaderDocument);
+        }
+        else
+        {
+            return this.UpdateShaderDocumentEmscripten(shaderDocument);
+        }
+    }
+
+    private DoUpdateShaders(): Promise<void>
+    {
+        if (!this.panelReady)
+        {
+            return new Promise<void>((resolve, reject) =>
+            {
+                reject("compiler not ready");
+            });
+        }
+
+        return new Promise<void>((resolve, reject) =>
+        {
+
+            let documentsToUpdate = Object.keys(this.documents).map(key => this.documents[key]).filter(doc => doc.needsUpdate && !doc.isBeingUpdated);
 
 			if (documentsToUpdate.length <= 0)
 			{
@@ -552,84 +911,48 @@ export default class HLSLPreview
 				return;
             }
 
-			documentsToUpdate.forEach(
-				(shaderDocument: ShaderDocument) =>
-				{
-                    let compileDocumentVersion = shaderDocument.version;
+            documentsToUpdate.forEach(doc => doc.needsUpdate = false);
 
-					shaderDocument.needsUpdate = false;
-                    shaderDocument.isBeingUpdated = true;
-                    shaderDocument.lastCompiledVersion = compileDocumentVersion;
+            Promise.all(documentsToUpdate.map(shaderDocument => this.UpdateShaderDocument(shaderDocument).then(
+                () =>
+                {
+                    if (!this.panel) { return; }
 
-                    if (this.panel)
+                    if (shaderDocument.glslCode)
                     {
-						this.panel.webview.postMessage({
-							command: 'updateIfdefs',
-							data: {
+                        this.panel.webview.postMessage({
+                            command: (shaderDocument.shaderType === ShaderType.vertex) ? 'updateVertexShader' : 'updateFragmentShader',
+                            data: {
                                 documentId: shaderDocument.documentId,
-                                ifdefs: shaderDocument.ifdefs,
-                                enabledIfdefs: shaderDocument.enabledIfdefs
+                                code: shaderDocument.glslCode.code,
+                                uniforms: this.LoadDocumentsUniformsDesc(this.documents),
+                                textures: this.LoadDocumentsTextures(this.documents)
                             }
-						});
+                        });
                     }
 
-					this.recompiler.HLSL2GLSL(shaderDocument)
-                    .then(
-                        ((shaderDocument: ShaderDocument, glslCode: GLSLCode) =>
-                        {
-                            if (this.panel)
-                            {
-                                this.panel.webview.postMessage({
-                                    command: (shaderDocument.shaderType === ShaderType.vertex) ? 'updateVertexShader' : 'updateFragmentShader',
-                                    data: {
-                                        documentId: shaderDocument.documentId,
-                                        code: glslCode.code,
-                                        uniforms: this.LoadDocumentsUniformsDesc(this.documents),
-                                        textures: this.LoadDocumentsTextures(this.documents)
-                                    }
-                                });
-
-                                this.panel.webview.postMessage({
-                                    command: 'showErrorMessage',
-                                    data: ""
-                                });
-                            }
-
-                            shaderDocument.lastUpdateVersion = compileDocumentVersion;
-
-                            shaderDocument.isBeingUpdated = false;
-
-                            resolve(glslCode);
-
-                            if (shaderDocument.needsUpdate)
-                            {
-                                this.UpdateShaders();
-                            }
+                    this.panel.webview.postMessage({
+                        command: 'showErrorMessage',
+                        data: {
+                            message: '',
+                            documentId: shaderDocument.documentId
                         }
-                    ).bind(this, shaderDocument))
-                    .catch((
-                        (reject:any, reason:any) =>
-                        {
-                            if (this.panel)
-                            {
-                                this.panel.webview.postMessage({
-                                    command: 'showErrorMessage',
-                                    data: reason
-                                });
+                    });
+
+                },
+                (error: string) =>
+                {
+                    if (this.panel) {
+                        this.panel.webview.postMessage({
+                            command: 'showErrorMessage',
+                            data: {
+                                message: error,
+                                documentId: shaderDocument.documentId
                             }
-
-                            shaderDocument.isBeingUpdated = false;
-
-                            reject(reason);
-
-                            if (shaderDocument.needsUpdate)
-                            {
-                                this.UpdateShaders();
-                            }
-                        }
-                    ).bind(this, reject));
-				}
-			);
-		});
+                        });
+                    }
+                })
+            )).then(() => resolve(), reject);
+        });
 	}
 }

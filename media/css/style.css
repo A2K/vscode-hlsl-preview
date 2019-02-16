@@ -42,7 +42,8 @@ div.Settings {
     overflow: hidden;
 }
 
-div.Settings:hover {
+div.Settings:hover,
+div.Settings.hover {
     background: rgba(0, 0, 0, 0.75);
     opacity: 1;
     transition: 0.25s;
@@ -362,9 +363,18 @@ div.errorMessage div.errorMessageLine div {
 div.errorMessage div.filename::after,
 div.errorMessage div.line::after,
 div.errorMessage div.column::after,
+div.errorMessage div.warning::after,
 div.errorMessage div.error::after {
     content: ":";
     color: rgba(255, 255, 255, 0.5);
+}
+
+div.errorMessage div.line {
+    color: rgba(255, 255, 255, 1);
+}
+
+div.errorMessage div.errorLocation:hover div.line {
+    color: inherit;
 }
 
 div.errorMessage div.error::before {
@@ -374,9 +384,9 @@ div.errorMessage div.error::before {
 div.errorMessage div.errorLocation {
     cursor: pointer;
 }
+
 div.errorMessage div.errorLocation:hover {
     color: rgba(225, 225, 255, 1.0);
-
 }
 
 div.errorMessage div.message::before {
@@ -398,8 +408,8 @@ div.errorMessage {
     overflow-x: hidden;
 }
 
-
 #errorFrame {
+    display: none;
     position: absolute;
     left: 0;
     right: 0;
@@ -412,9 +422,20 @@ div.errorMessage {
     background: repeating-linear-gradient(
         45deg,
         rgba(255, 125, 125, 0.5),
-        rgba(255, 125, 125, 0.5) 20px,
-        transparent 20px,
-        transparent 45px
+        rgba(255, 125, 125, 0.5) 40px,
+        rgba(0, 0, 0, 0.1) 40px,
+        rgba(0, 0, 0, 0.1) 90px
+      );
+}
+
+
+#errorFrame.fixed {
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(125, 255, 125, 0.25),
+        rgba(125, 255, 125, 0.25) 40px,
+        rgba(0, 0, 0, 0.01) 40px,
+        rgba(0, 0, 0, 0.01) 90px
       );
 }
 
@@ -523,4 +544,120 @@ div.settingsHeader .button {
     left: 3.5px;
     padding-top: -2px;
     padding-left: 0px;
+}
+
+
+@keyframes MOVE-BG {
+	from {
+		transform: translateX(0);
+	}
+	to {
+		transform: translateX(130px);
+	}
+}
+
+.loading {
+	height: auto;
+    text-align: center;
+    color: #4c3f2e;
+    position: relative;
+    overflow: hidden;
+	padding: 1rem;
+	margin: 3%;
+	font-style: italic;
+}
+
+.loadingIndicator .background {
+    position: absolute;
+    left: -146px;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: -1;
+
+    background: repeating-linear-gradient(
+        45deg,
+        rgb(133, 97, 0),
+        rgb(133, 97, 0) 40px,
+        rgba(0, 0, 0, 0.1) 40px,
+        rgba(0, 0, 0, 0.1) 90px
+      );
+
+    animation-name: MOVE-BG;
+	animation-duration: 1.0s;
+	animation-timing-function: linear;
+	animation-iteration-count: infinite;
+}
+
+div.loadingIndicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    z-index: 999999999999;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+div.loadingIndicator div.text {
+    color: white;
+    position: fixed;
+    width: 250px;
+    height: 50px;
+    border: 3px solid rgb(136, 100, 0);
+    box-shadow: 5px 5px 50px 0px rgba(0,0,0,0.25);
+    background: rgb(0, 0, 0);
+    text-align: center;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 20px;
+}
+
+div.contextMenu {
+    position: fixed;
+    width: fit-content;
+    height: fit-content;
+    top: 0px;
+    left: 0px;
+    cursor: default;
+    background: rgba(0, 0, 0, 0.75);
+    color: rgba(255, 255, 255, 0.9);
+    border: 0.5px solid rgba(255, 255, 255, 0.25);
+}
+
+div.contextMenuItem
+{
+    cursor: default;
+    padding: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    min-width: 75px;
+}
+
+div.contextMenuItem:hover
+{
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.buttons
+{
+    width: 100%;
+}
+.buttons .button
+{
+    margin-left: 4px;
+    margin-right: 4px;
+    display: inline-block;
+    width: 100px;
+    padding-top: 3px;
+    height: 17px;
 }

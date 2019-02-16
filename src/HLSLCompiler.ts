@@ -27,28 +27,113 @@ export default class HLSLCompiler
         this.loadConfiguration();
     }
 
-    private processErrorMessage(filename: string, tmpFilename: string, message: string, lineOffset: number): string
+    public canUseNativeBinary(): Promise<boolean>
     {
-        return message.split(/\n/g).map(line => {
-            if (line.toLowerCase().startsWith(tmpFilename.toLowerCase())) {
+        return new Promise<boolean>((resolve) =>
+        {
+            let options = vscode.workspace.rootPath ? { cwd: vscode.workspace.rootPath } : undefined;
+            let childProcess = cp.spawn(this.executable, [ '-help' ], options);
+
+            childProcess.on('error', (error: Error) =>
+            {
+                console.error(`DXC[${this.executable}] failed: ${error}`);
+                resolve(false);
+            });
+
+            childProcess.on('exit', (code: number, signal: string) =>
+            {
+                if (code !== 0)
+                {
+                    console.error(`DXC[${this.executable}] exited with non-zero code: ${code}`);
+                }
+                resolve(code === 0);
+            });
+        });
+    }
+
+    public static ProcessErrorMessage(filename: string, tmpFilename: string, message: string, metadata: {
+        text: string,
+        symbols: string[],
+        predefined: { [key: string]: string },
+        addedLines: number
+    }): string
+    {
+        if (!message)
+        {
+            return "";
+        }
+
+        return message.split(/\n/g).map(line =>
+        {
+            if (line.toLowerCase().startsWith(tmpFilename.toLowerCase()))
+            {
                 let errorMessage = line.substr(tmpFilename.length);
                 let parts = errorMessage.split(':');
-                parts[1] = (parseInt(parts[1]) + lineOffset).toString();
+                parts[1] = (parseInt(parts[1]) - metadata.addedLines).toString();
                 return filename + parts.join(':');
             }
             return line;
         }).join('\n');
     }
 
-    private Preprocess(textDocument: vscode.TextDocument): string
+    public static Preprocess(shaderDocument: ShaderDocument): {
+        text: string,
+        symbols: string[],
+        predefined: { [key: string]: string },
+        addedLines: number
+    }
     {
-        let text = textDocument.getText();
-        if (textDocument.fileName.endsWith(".ush"))
+        let text: string = shaderDocument.text;
+        if (shaderDocument.fileName.endsWith(".ush"))
         {
             text = text.replace(/#pragma\s+once[^\n]*\n/g, '//#pragma once\n');
         }
 
-        return text;
+        let symbols: string[] = [];
+
+        let predefined: { [key: string]: string } = {};
+
+        const re = /\/\/\s*INPUTS(?:\((\w+)\))?:\s*([^\n]+)\s*\n/g;
+
+        let m;
+        while (m = re.exec(text))
+        {
+            if (m.length === 1) { continue; }
+
+            let typeName: string = 'float';
+
+            if (m.length === 3 && typeof (m[1]) !== 'undefined')
+            {
+                typeName = m[1];
+            }
+
+            ((m.length === 2) ? m[1] : m[2]).split(/\s*,\s*/).forEach((symbol: string) =>
+            {
+                symbol = symbol.trim();
+                let existingSymbol = symbols.find((s) => 0 === s.localeCompare(symbol));
+                if (typeof (existingSymbol) === 'undefined' || null === existingSymbol)
+                {
+                    symbols.push(symbol);
+                    predefined[symbol] = typeName;
+                }
+            });
+        }
+
+        let addedLines = 0;
+        let prefix: string = "";
+
+        Object.keys(predefined).forEach((key) =>
+        {
+            prefix += predefined[key] + ' ' + key + ';\n';
+            addedLines = addedLines + 1;
+        });
+
+        return {
+            text: prefix + text,
+            symbols: symbols,
+            predefined: predefined,
+            addedLines: addedLines
+        };
     }
 
     private GetProfileForShaderType(shaderType: ShaderType): string
@@ -87,40 +172,7 @@ export default class HLSLCompiler
 
             let args: string[] = Array.from(this.defaultArgs);
 
-            const re = /\/\/\s*INPUTS(?:\((\w+)\))?:\s*([^\n]+)\s*\n/g;
-
-            var symbols: string[] = [];
-
-            var predefined: { [key: string]: string } = {};
-
-            let text = this.Preprocess(shaderDocument.document);
-
-            var m;
-            while (m = re.exec(text))
-            {
-                if (m.length === 1)
-                {
-                    continue;
-                }
-
-                var typeName: string = 'float';
-
-                if (m.length === 3 && typeof (m[1]) !== 'undefined')
-                {
-                    typeName = m[1];
-                }
-
-                ((m.length === 2) ? m[1] : m[2]).split(/\s*,\s*/).forEach((symbol: string) =>
-                {
-                    symbol = symbol.trim();
-                    var existingSymbol = symbols.find((s) => 0 === s.localeCompare(symbol));
-                    if (typeof (existingSymbol) === 'undefined' || null === existingSymbol)
-                    {
-                        symbols.push(symbol);
-                        predefined[symbol] = typeName;
-                    }
-                });
-            }
+            let metadata = HLSLCompiler.Preprocess(shaderDocument);
 
             this.includeDirs.forEach(includeDir =>
             {
@@ -148,17 +200,7 @@ export default class HLSLCompiler
 
             args.push(filename);
 
-            var addedLines = 0;
-            let prefix: string = "";
-            Object.keys(predefined).forEach((key) =>
-            {
-                prefix += predefined[key] + ' ' + key + ';\n';
-                addedLines = addedLines + 1;
-            });
-
-            text = prefix + text;
-
-            fs.writeFile(filename, Buffer.from(text, 'utf8'), ((err: Error) =>
+            fs.writeFile(filename, Buffer.from(metadata.text, 'utf8'), ((err: Error) =>
             {
                 if (err)
                 {
@@ -216,8 +258,7 @@ export default class HLSLCompiler
                     }
                     else
                     {
-                        let basename = shaderDocument.fileName.split(/[/\\]/).pop() || shaderDocument.fileName;
-                        reject(this.processErrorMessage(basename, filename, stderr, -addedLines));
+                        reject(HLSLCompiler.ProcessErrorMessage(shaderDocument.fileBaseName, filename, stderr, metadata));
                     }
                 });
 
@@ -225,15 +266,15 @@ export default class HLSLCompiler
         });
     }
 
-    private loadConfiguration(): void
+    public loadConfiguration()
     {
         let section = vscode.workspace.getConfiguration('hlsl');
 
         if (section)
         {
-            this.executable = section.get<string>('preview.dxcExecutablePath', this.executable);
-            this.defaultArgs = section.get<string[]>('preview.dxcDefaultArgs', this.defaultArgs);
-            this.includeDirs = section.get<string[]>('preview.includeDirs') || [];
+            this.executable = section.get<string>('preview.dxc.executablePath', this.executable);
+            this.defaultArgs = section.get<string[]>('preview.dxc.defaultArgs', this.defaultArgs);
+            this.includeDirs = section.get<string[]>('preview.dxc.includeDirs') || [];
         }
     }
 

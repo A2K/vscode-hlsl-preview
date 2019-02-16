@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 
 import { ShaderType } from './Enums';
-import { GLSLCode } from './GLSLCompiler';
 
 import * as Utils from './Utils';
+import GLSLCode from './GLSLCode';
 
 
 export default class ShaderDocument
@@ -22,7 +22,11 @@ export default class ShaderDocument
 
     public glslCode: GLSLCode | undefined = undefined;
 
-	private _needsUpdate: boolean = true;
+    public promises: { resolve: any, reject: any, version: number }[] = [];
+
+    private _needsUpdate: boolean = true;
+
+    private lastCompiledIfdefs: string[] = [];
 
 	public set needsUpdate(value: boolean)
 	{
@@ -31,7 +35,28 @@ export default class ShaderDocument
 
 	public get needsUpdate(): boolean
 	{
-		return this._needsUpdate || ((this.version !== this.lastUpdateVersion) && (this.lastCompiledVersion !== this.version));
+        if (this._needsUpdate || (this.lastCompiledVersion !== this.version))
+        {
+            return true;
+        }
+        if (this.enabledIfdefs.length !== this.lastCompiledIfdefs.length)
+        {
+            return true;
+        }
+        let definesDiffer = false;
+        this.enabledIfdefs.forEach(item => {
+            if (!(this.lastCompiledIfdefs.indexOf(item) < 0))
+            {
+                definesDiffer = true;
+            }
+        });
+        this.lastCompiledIfdefs.forEach(item => {
+            if (!(this.enabledIfdefs.indexOf(item) < 0))
+            {
+                definesDiffer = true;
+            }
+        });
+        return definesDiffer;
 	}
 
 	public get text(): string
@@ -52,6 +77,11 @@ export default class ShaderDocument
 	public get fileName(): string
 	{
 		return this.document.fileName;
+    }
+
+    public get fileBaseName(): string
+    {
+        return this.fileName.split(/[/\\]/).pop() || this.fileName;
     }
 
     private _ifdefs: string[] = [];
@@ -75,13 +105,11 @@ export default class ShaderDocument
 
     public get uniforms(): object
     {
-        console.log('get uniforms', this.context.workspaceState.get(this.uniformsSettingsKey));
 		return this.context.workspaceState.get(this.uniformsSettingsKey, {});
     }
 
     public set uniforms(value: object)
     {
-        console.log('set uniforms', value);
         this.context.workspaceState.update(this.uniformsSettingsKey, value);
     }
 
@@ -165,7 +193,7 @@ export default class ShaderDocument
 
         this.context.workspaceState.update(
             this.enabledIfdefsVersionSettingsKey,
-            this.version
+            newEnabledIfdefs
         );
     }
 
@@ -177,9 +205,9 @@ export default class ShaderDocument
 	{
 		let result: { [key:string]: string } = {};
 
-        if ('separate_images' in this.reflection)
+        if (this.reflection && this.reflection.separate_images)
         {
-            this.reflection['separate_images'].forEach(
+            this.reflection.separate_images.forEach(
                 (tex: { [key:string]: any }) =>
                 {
                     result[tex['name']] = tex['type'];

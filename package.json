@@ -2,9 +2,9 @@
 	"name": "hlsl-preview",
 	"displayName": "HLSL preview",
 	"description": "Real time preview for HLSL shaders",
-	"version": "0.6.8",
+	"version": "0.8.2",
 	"publisher": "A2K",
-    "icon": "media/images/icon.png",
+	"icon": "media/images/icon.png",
 	"bugs": {
 		"url": "https://github.com/A2K/vscode-hlsl-preview/issues"
 	},
@@ -39,6 +39,12 @@
 		"test": "npm run compile && node ./node_modules/vscode/bin/test"
 	},
 	"dependencies": {
+		"@types/get-port": "3.2.0",
+		"get-port": "3.2.0",
+		"@types/express": "4.11.1",
+		"express": "4.11.1",
+		"@types/base64-js": "^1.2.5",
+		"base64-js": "^1.2.5",
 		"@types/mime-types": "^2.1.0",
 		"mime-types": "^2.1.21",
 		"@types/tempfile": "^2.0.0",
@@ -60,46 +66,33 @@
 				"title": "Preview HLSL"
 			}
 		],
+		"menus": {
+			"editor/title/context": [{
+				"when": "resourceLangId == hlsl",
+				"command": "hlsl.preview.start",
+				"group": "navigation"
+			}]
+		},
 		"configuration": {
 			"type": "object",
 			"title": "HLSL preview",
 			"properties": {
-				"hlsl.preview.dxcExecutablePath": {
+				"hlsl.preview.useNativeBinaries": {
+					"type": "boolean",
+					"default": true,
+					"description": "Use native DXC and SPIRV-Cross executables instead of WebAssembly (loads faster, requires binaries)"
+				},
+				"hlsl.preview.useWebServer": {
+					"type": "boolean",
+					"default": true,
+					"description": "Use web server to load WebAssembly"
+				},
+				"hlsl.preview.dxc.executablePath": {
 					"type": "string",
 					"default": "dxc",
-					"description": "The dxc executable from DirectX Shader Compiler: https://github.com/Microsoft/DirectXShaderCompiler"
+					"description": "The DXC executable from DirectX Shader Compiler: https://github.com/Microsoft/DirectXShaderCompiler"
 				},
-				"hlsl.preview.spirvcrossExecutablePath": {
-					"type": "string",
-					"default": "SPIRV-Cross",
-					"description": "The SPIRV-Cross executable: https://github.com/KhronosGroup/SPIRV-Cross"
-				},
-				"hlsl.preview.trigger": {
-					"type": "string",
-					"enum": [
-						"onSave",
-						"onType"
-					],
-					"default": "onType",
-					"description": "When to update the preview."
-				},
-				"hlsl.preview.delay": {
-					"type": "number",
-					"default": "500",
-					"description": "Trigger delay and max update frequency."
-				},
-				"hlsl.preview.includeDirs": {
-					"type": [
-						"string",
-						"array"
-					],
-					"items": {
-						"type": "string"
-					},
-					"default": [],
-					"description": "List of include directories."
-				},
-				"hlsl.preview.dxcDefaultArgs": {
+				"hlsl.preview.dxc.defaultArgs": {
 					"type": [
 						"string",
 						"array"
@@ -114,9 +107,25 @@
 						"-Vd",
 						"-Zi"
 					],
-					"description": "The dxt executable default arguments."
+					"description": "The DXC executable default arguments."
 				},
-				"hlsl.preview.spirvcrossDefaultArgs": {
+				"hlsl.preview.dxc.includeDirs": {
+					"type": [
+						"string",
+						"array"
+					],
+					"items": {
+						"type": "string"
+					},
+					"default": [],
+					"description": "List of include directories."
+				},
+				"hlsl.preview.spirv.executablePath": {
+					"type": "string",
+					"default": "SPIRV-Cross",
+					"description": "The SPIRV-Cross executable: https://github.com/KhronosGroup/SPIRV-Cross"
+				},
+				"hlsl.preview.spirv.defaultArgs": {
 					"type": [
 						"string",
 						"array"
@@ -130,6 +139,20 @@
 						"--es"
 					],
 					"description": "The SPIRV-Cross executable default arguments."
+				},
+				"hlsl.preview.trigger": {
+					"type": "string",
+					"enum": [
+						"onSave",
+						"onType"
+					],
+					"default": "onType",
+					"description": "When to update the preview."
+				},
+				"hlsl.preview.delay": {
+					"type": "number",
+					"default": "500",
+					"description": "Trigger delay and max update frequency."
 				}
 			}
 		}

@@ -1,13 +1,152 @@
 
 
+let consolelog = console.log;
 function log()
 {
     var args = [];
     for(var i = 0; i < arguments.length; ++i) args.push(arguments[i]);
-    console.log((args.map(arg => {
+    consolelog((args.map(arg => {
         if (typeof(arg) === 'object') return JSON.stringify(arg);
         return arg;
     })).join(' '));
+}
+console.log = log;
+
+
+const TypedArrayToPNG = (data, width, height, mime) =>
+{
+    mime = mime || "image/png";
+
+    let canvas = $(`<canvas width=${width} height=${height}>`);
+    canvas.css({
+        display: 'none',
+        width: `${width}px`,
+        height: `${height}px`,
+        position: 'fixed'
+    });
+    $('body').append(canvas);
+
+    let ctx = canvas[0].getContext('2d');
+
+    let imagedata = new ImageData(
+        (data instanceof Uint8ClampedArray) ? data : new Uint8ClampedArray(data.buffer),
+        width, height);
+
+
+    ctx.putImageData(imagedata, 0, 0, 0, 0, width, height);
+
+    let dataUrl;
+    { // flip image vertically because OpenGL
+        let mirrorCanvas = $(`<canvas width=${width} height=${height}>`);
+        mirrorCanvas.css({
+            display: 'none',
+            width: `${width}px`,
+            height: `${height}px`,
+            position: 'fixed'
+        });
+        $('body').append(mirrorCanvas);
+
+        let mirrorCtx = mirrorCanvas[0].getContext('2d');
+        mirrorCtx.save();  // save the current canvas state
+        mirrorCtx.setTransform(
+            1, 0, // set the direction of x axis
+            0, -1, // set the direction of y axis
+            0, // set the x origin
+            height // set the y origin
+        );
+        mirrorCtx.drawImage(canvas[0], 0, 0);
+        mirrorCtx.restore(); // restore the state as it was when this function was called
+
+        dataUrl = mirrorCanvas[0].toDataURL(mime, 1);
+
+        mirrorCanvas.remove();
+    }
+
+    canvas.remove();
+
+    return dataUrl;
+}
+
+const RenderToFile = (width, height, mimeType) =>
+{
+    width = width || 2048;
+    height = height || 2048;
+    mimeType = mimeType || 'image/png';
+
+    let renderTarget = new THREE.WebGLRenderTarget(width, height, {
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+        magFilter: THREE.LinearFilter,
+        minFilter: THREE.LinearFilter,
+        format: THREE.RGBAFormat,
+        type: THREE.UnsignedByteType,
+        anisotropy: 0,
+        encoding: THREE.LinearEncoding,
+        depthBuffer: false,
+        stencilBuffer: false
+    });
+
+
+    if (camera instanceof THREE.PerspectiveCamera)
+    {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+    }
+
+    if (shaderMode === ShaderModeMesh)
+    {
+        let size = renderer.getSize();
+        renderer.setSize(width, height);
+
+        let aspect = camera.aspect;
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+
+        renderer.render(scene, camera, renderTarget, true);
+
+        renderer.setSize(size.width, size.height);
+
+        camera.aspect = aspect;
+        camera.updateProjectionMatrix();
+    }
+    else
+    {
+        renderer.render(scene, camera, renderTarget, true);
+    }
+
+    return new Promise((resolve) =>
+    {
+        let buffer = new Uint8Array(width * height * 4);
+
+        const check = ((renderTarget) =>
+        {
+            _gl.bindFramebuffer( _gl.FRAMEBUFFER, renderTarget.__webglFramebuffer );
+            return _gl.checkFramebufferStatus( _gl.FRAMEBUFFER ) === _gl.FRAMEBUFFER_COMPLETE;
+        }).bind(renderTarget);
+
+        const finish = ((renderTarget, buffer, width, height, mimeType) =>
+        {
+            renderer.readRenderTargetPixels(renderTarget, 0, 0, width, height, buffer);
+            let png = TypedArrayToPNG(buffer, width, height, mimeType);
+            resolve(png);
+        }).bind(this, renderTarget, buffer, width, height, mimeType);
+
+        let checkAndFinish = (renderTarget, buffer, check, finish) =>
+        {
+            if (check)
+            {
+                return finish();
+            }
+            else
+            {
+                setTimeout(this, 15);
+            }
+        };
+
+        checkAndFinish = checkAndFinish.bind(checkAndFinish, renderTarget, buffer, check, finish);
+
+        checkAndFinish();
+    });
 }
 
 const InternalParameters = [ 'iTime', 'iResolution' ];
@@ -25,11 +164,22 @@ var lastCameraRotation = new THREE.Euler();
 
 var shaderMode = ShaderMode2D;
 
+var CurrentGeometryClass = THREE.SphereGeometry;
+var CurrentGeometrySubdivisions = 128;
+
 scene = new THREE.Scene();
 
 renderer = new THREE.WebGLRenderer({
     antialias: true,
     depth: true
+});
+
+$(renderer.domElement).click((event) =>
+{
+    if (!window.settings.hidden)
+    {
+        window.settings.toggleHidden(250);
+    }
 });
 
 window.ifdefs = [];
@@ -47,16 +197,28 @@ window.uniforms = {
     }
 }
 
-
 window.TextureLoader = new THREE.TextureLoader();
 
 const DefaultTextureSettings = {
     generateMipmaps: false,
     wrapS: THREE.ClampToEdgeWrapping,
     wrapT: THREE.ClampToEdgeWrapping,
-    minFilter: THREE.NearestFilter,
-    magFilter: THREE.NearestFilter
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter
 };
+
+function updateMeshGeometry(subdivisions)
+{
+    if (!window.mesh) return;
+
+    if (window.mesh.geometry) window.mesh.geometry.dispose();
+
+    if (shaderMode === ShaderModeMesh)
+    {
+
+        window.mesh.geometry = new CurrentGeometryClass(100, subdivisions, subdivisions);
+    }
+}
 
 function UpdateMaterial()
 {
@@ -76,39 +238,56 @@ function UpdateMaterial()
         }
     });
 
-    Object.keys(window.uniforms).forEach(key => {
-        if (key === '_Globals') return;
-        if (!(key in newUniforms)) {
-            delete window.uniforms[key];
+    Object.keys(window.uniforms).forEach(key =>
+    {
+        if (key in newUniforms)
+        {
+            if (key === '_Globals')
+            {
+                let Globals = window.uniforms['_Globals'];
+                let newGlobals = newUniforms['_Globals'];
+                Object.keys(newGlobals.value).forEach(((window, key) =>
+                {
+                    Globals.value[key] = newGlobals.value[key];
+                }).bind(this, window));
+
+                Object.keys(Globals.value).forEach(key =>
+                {
+                    if (InternalParameters.indexOf(key) >= 0)
+                    {
+                        return;
+                    }
+                    if (!(key in newGlobals.value))
+                    {
+                        delete Globals.value[key];
+                    }
+                });
+            }
+        }
+        else
+        {
+            if (key !== '_Globals')
+            {
+                if (window.uniforms[key].type === 't')
+                {
+                    if (window.uniforms[key].value)
+                    {
+                        window.uniforms[key].value.dispose();
+                    }
+                }
+                delete window.uniforms[key];
+            }
         }
     });
-
-    if ('_Globals' in window.uniforms)
-    {
-        if ('_Globals' in newUniforms) {
-
-            Object.keys(newUniforms['_Globals'].value).forEach(((window, key) => {
-                window.uniforms['_Globals'].value[key] = newUniforms['_Globals'].value[key];
-            }).bind(this, window));
-
-            Object.keys(window.uniforms['_Globals'].value).forEach(key => {
-                if (InternalParameters.indexOf(key) >= 0) return;
-                if (!(key in newUniforms['_Globals'].value)) {
-                    delete window.uniforms['_Globals'].value[key];
-                }
-            });
-
-        }
-    }
 
     if (window.material)
     {
         if (window.material.fragmentShader !== window.fragmentShaderCode) {
-            window.material.fragmentShader = window.fragmentShaderCode;
+            window.material.fragmentShader = '' + window.fragmentShaderCode;
             window.material.needsUpdate = true;
         }
         if (window.material.vertexShader !== window.vertexShaderCode) {
-            window.material.vertexShader = window.vertexShaderCode;
+            window.material.vertexShader = '' + window.vertexShaderCode;
             window.material.needsUpdate = true;
         }
     } else {
@@ -118,8 +297,8 @@ function UpdateMaterial()
     {
         window.material = new THREE.ShaderMaterial({
             uniforms: window.uniforms,
-            vertexShader: window.vertexShaderCode,
-            fragmentShader: window.fragmentShaderCode
+            vertexShader: '' + window.vertexShaderCode,
+            fragmentShader: '' + window.fragmentShaderCode
         });
 
         if (window.mesh) {
@@ -151,14 +330,16 @@ function LoadTexture(url, settings, filename) {
     switch (ext)
     {
         case 'tga':
-            texture = new THREE.TGALoader().load(url, (q) => {}, errorCallback);
+            texture = new THREE.TGALoader().load(url, (q) => { if (window.material) window.material.needsUpdate = true; }, errorCallback);
         break;
         case 'dds':
-            texture = new THREE.DDSLoader().load(url, (q) => {}, errorCallback);
+            texture = new THREE.DDSLoader().load(url, (q) => { if (window.material) window.material.needsUpdate = true; }, errorCallback);
         break;
         default:
-            texture = window.TextureLoader.load(url, (q) => {}, errorCallback);
+            texture = window.TextureLoader.load(url, (q) => { if (window.material) window.material.needsUpdate = true; }, errorCallback);
     }
+
+    texture.flipY = false;
 
     if (filename) {
         texture.sourceFile = filename;
@@ -168,8 +349,6 @@ function LoadTexture(url, settings, filename) {
 
     return texture;
 }
-
-const DefaultTexture = LoadTexture($('#defaultTexture').attr('src'), DefaultTextureSettings, 'default');
 
 window.fragmentShaderCode = "";
 window.vertexShaderCode = "";
@@ -305,11 +484,17 @@ class TextureSettings {
         this.div.on('mousedown focus', this.bringToTop.bind(this));
     }
 
-    close() {
+    close()
+    {
         this.div.fadeOut({
             duration: 100,
-            complete: () => {
+            complete: () =>
+            {
                 this.div.detach();
+                if (window.settings && window.settings.childWindows.contains(this))
+                {
+                    window.settings.childWindows.remove(this);
+                }
             }
         });
     }
@@ -571,13 +756,14 @@ class TextureSettings {
             }
 
             this.bringToTop();
+
+            window.settings.childWindows.add(this);
         });
 
         return button;
     }
 
 }
-
 
 class Settings
 {
@@ -592,6 +778,29 @@ class Settings
         this.initialized = false;
         this.hidden = false;
 
+        this._childWindows = new Set();
+        this.childWindows = {
+            add: ((item) =>
+            {
+                let result = this._childWindows.add(item);
+                this.updateHoverState();
+                return result;
+            }).bind(this),
+            remove: ((item) =>
+            {
+                if (this._childWindows.has(item))
+                {
+                    let result = this._childWindows.delete(item);
+                    this.updateHoverState();
+                    return result;
+                }
+            }).bind(this),
+            contains: ((item) =>
+            {
+                return this._childWindows.has(item);
+            }).bind(this)
+        };
+
         if (!this.error) {
             this.error = this.makeErrorView();
             $('body').append(this.error);
@@ -599,8 +808,38 @@ class Settings
         }
     }
 
-    init()
+    postMessage(message)
     {
+        this.vscode.postMessage(message);
+    }
+
+    updateHoverState()
+    {
+        if (this._childWindows.size > 0)
+        {
+            if (!this.div.hasClass('hover'))
+            {
+                this.div.addClass('hover');
+            }
+        }
+         else
+        {
+            if (this.div.hasClass('hover'))
+            {
+                this.div.removeClass('hover');
+            }
+        }
+    }
+
+    requestData()
+    {
+        this.vscode.postMessage({
+            type: 'update',
+            data: {
+                opId: lastOpId++
+            }
+        });
+
         this.vscode.postMessage({
             type: 'getUniforms',
             data: {
@@ -614,13 +853,11 @@ class Settings
                 opId: lastOpId++
             }
         });
+    }
 
-        this.vscode.postMessage({
-            type: 'update',
-            data: {
-                opId: lastOpId++
-            }
-        });
+    init()
+    {
+        this.requestData();
 
         this.div = $('<div>');
         this.div.addClass('Settings');
@@ -635,6 +872,38 @@ class Settings
 
         this.modeSwitch = this.makeModeSwitch();
         this.content.append(this.modeSwitch);
+
+        this.buttons = $('<div>').addClass('buttons');
+
+        this.buttons.append(
+            $('<div>')
+            .addClass('button')
+            .text('Recompile')
+            .css({ cursor: 'pointer' })
+            .on('click', () => {
+                window.settings.postMessage({
+                    type: 'update'
+                });
+            })
+        );
+
+        this.buttons.append(
+            $('<div>')
+            .addClass('button')
+            .text('Render to file')
+            .css({ cursor: 'pointer' })
+            .on('click', () => {
+                window.settings.postMessage({
+                    type: 'selectSaveImage',
+                    data: {}
+                });
+            })
+        );
+
+        this.content.append(this.buttons);
+
+        // this.meshSettings = this.makeMeshSettings();
+        // this.content.append(this.meshSettings);
 
         this.table = $('<div>');
         this.content.append(this.table);
@@ -653,6 +922,14 @@ class Settings
         this.initialized = true;
 
         this.updateUI();
+
+        if (!WASMCompiler)
+        {
+            window.settings.vscode.postMessage({
+                type: 'ready',
+                data: { }
+            });
+        }
     }
 
     update(uniformsDesc)
@@ -683,7 +960,6 @@ class Settings
         }
 
         this.setErrorMessage(this.errorMessage);
-
     }
 
     makeHeader()
@@ -856,6 +1132,10 @@ class Settings
                 {
                     modeMesh.addClass('Active');
                 }
+                if (this.meshSettings)
+                {
+                    this.meshSettings.show();
+                }
             }
             else if (shaderMode === ShaderMode2D)
             {
@@ -867,13 +1147,45 @@ class Settings
                 {
                     mode2d.addClass('Active');
                 }
+                if (this.meshSettings)
+                {
+                    this.meshSettings.hide();
+                }
             }
         }).bind(this, mode2d, modeMesh);
 
         return div;
     }
 
-    formatErrorMessage(message)
+    makeMeshSettings()
+    {
+        let div = $('<div>');
+        div.addClass('meshSettings');
+
+        let subdivision = $('<div>');
+        {
+            let label = $('<div>');
+            {
+                label.text('Subdivisions:');
+            }
+            subdivision.append(label);
+
+            let input = $('<input type="range" min="1" max="256" value="64">');
+            {
+                input.addClass('slider');
+
+                input.on('change input keyup', ((input, event) => {
+                    updateMeshGeometry(input.val());
+                }).bind(this, input));
+            }
+            subdivision.append(input);
+        }
+        div.append(subdivision);
+
+        return div;
+    }
+
+    formatErrorMessage(message, documentId)
     {
         let text = $('<div>');
         text.addClass('errorMesageContent');
@@ -919,6 +1231,7 @@ class Settings
                     this.vscode.postMessage({
                         type: 'goto',
                         data: {
+                            documentId: documentId,
                             filename: filename,
                             line: line,
                             column: column
@@ -940,29 +1253,109 @@ class Settings
         return text;
     }
 
-    setErrorMessage(error) {
 
-        if (error instanceof Object) error = '';
+    blinkFrame(color)
+    {
+        let frame = $('<div>')
+            .addClass('errorFrameAnimation')
+            .css({
+                'box-shadow': `inset 0px 0px 50px 50px ${color}`,
+                position: 'fixed',
+                top: -25,
+                left: -25,
+                right: -25,
+                bottom: -25,
+                width: 'auto',
+                height: 'auto',
+                margin: 0,
+                padding: 0,
+                'z-index': window.maxZIndex++
+            });
+
+        frame.hide();
+
+        $('body').append(frame);
+
+        const blink = (durationIn, durationOut) => {
+            return new Promise((resolve) => {
+                frame.fadeIn(durationIn, () => {
+                    frame.fadeOut(durationOut, () => resolve());
+                });
+            });
+        };
+
+        const blinkSequence = (durationIn, durationOut, times) =>
+        {
+            if (times === 0) {
+                return new Promise((resolve) => resolve());
+            }
+            let promise = undefined;
+            for(let i = 0; i < times; ++i)
+            {
+                if (promise) {
+                    promise = promise.then(() => blink(durationIn, durationOut));
+                } else {
+                    promise = blink(durationIn, durationOut);
+                }
+            }
+            return promise;
+        }
+
+        blinkSequence(50, 250, 1);
+        /*
+        blinkSequence(50, 250, 1).then(() => {
+            frame.css({ opacity: 0.5 });
+            blinkSequence(50, 150, 1);
+        });
+        */
+    }
+
+    setErrorMessage(error, documentId)
+    {
+        error = error || '';
+
+        if (error && !this.errorMessage)
+        {
+            this.blinkFrame('rgba(255, 0, 0, 0.5)');
+        }
+
+        if (!error && this.errorMessage)
+        {
+            this.blinkFrame('rgba(0, 55, 255, 0.25)');
+        }
 
         this.errorMessage = error;
 
         this.error.html('');
 
-        if (!error) {
+        let frame = $('#errorFrame');
+        if (!error)
+        {
             this.error.hide();
-            $('#errorFrame').hide();
-            return;
+
+            if (!frame.hasClass('fixed'))
+            {
+                frame.addClass('fixed');
+            }
+
+            frame.fadeOut(250);
         }
-
-        this.error.append(this.formatErrorMessage(error));
-        this.error.show();
-
-        $('#errorFrame').show();
+        else
+        {
+            this.error.append(this.formatErrorMessage(error, documentId));
+            this.error.show();
+            if (frame.hasClass('fixed'))
+            {
+                frame.removeClass('fixed');
+            }
+            frame.fadeIn(250);
+        }
     }
 
     makeErrorView() {
         var error = $('<div>')
             .addClass('errorMessage');
+        error.hide();
         return error;
     }
 
@@ -1075,7 +1468,6 @@ class Settings
 
         this.uniforms = {};
 
-
         window.ifdefs.forEach(ifdef => {
             let field = this.buildIfdefField(ifdef);
             table.append(field);
@@ -1093,11 +1485,11 @@ class Settings
             this.uniforms[key] = fields;
         });
 
-        Object.keys(texturesDesc).forEach(tex => {
-            let field = this.buildField(undefined, tex, 't');
+        Object.keys(texturesDesc).forEach(name => {
+            let field = this.buildField(undefined, name, 't');
             table.append(field);
-            this.uniforms[tex] = field;
-            this.uniforms[tex].type = 't';
+            this.uniforms[name] = field;
+            this.uniforms[name].type = 't';
         });
 
         return scrollBox.append(table);
@@ -1115,23 +1507,33 @@ class Settings
         return instance;
     }
 
-    getInputFieldForType(type, value, name)
+    getInputFieldForType(type, value, name, uniformKey)
     {
         let onUpdate = this.onSettingsUpdate.bind(this);
 
         var div = $('<div>')
             .addClass('inputBox');
 
-        function makeFloatInput(value) {
+        div.data('uniformKey', uniformKey);
+
+        let makeFloatInput = (value) =>
+        {
             value = parseFloat(value) || 0.0;
+
             let input = $(`<input type=number step=0.001 value=${value} pattern="^([-+]?\d*\.?\d+)(?:[eE]([-+]?\d+))?$">`);
+
+            input.addClass('floatInput');
 
             var marker;
 
-
-
-            input.on('mousedown', (event) => {
-
+            input.on('mousedown', (event) =>
+            {
+                this._childWindows.forEach(w => {
+                    if (w.isContextMenu)
+                    {
+                        w.remove();
+                    }
+                });
                 var startValue = parseFloat(input.val());
 
                 var mouseDownTime = new Date().getTime();
@@ -1154,8 +1556,8 @@ class Settings
 
                 marker.append(text);
 
-                document.onmousemove = (event) => {
-
+                document.onmousemove = (event) =>
+                {
                     marker.css({
                         left: (event.clientX - 50) + 'px',
                         top: (event.clientY - 50) + 'px',
@@ -1207,21 +1609,6 @@ class Settings
                     cleanup;
                 }
 
-                /*
-                marker.on('keyup contextmenu mousedown', (event) => {
-                    document.onmouseup = null;
-                    document.onmousemove = null;
-                    input.val(startValue);
-                    marker.remove();
-                    return false;
-                });
-
-                marker.on('mouseup', (event) => {
-                    marker.remove();
-                    return false;
-                });
-                */
-
                 $('body').append(marker);
 
                 return true;
@@ -1259,68 +1646,70 @@ class Settings
         switch(type)
         {
         case 'float':
-{
-            value = value || 0.0;
+        {
+            div.addClass('floatInputBox');
 
-            var value = makeFloatInput(value)
-                .addClass('floatInput')
-                .on('change keyup', onUpdate);
+            value = parseFloat(value) || 0.0;
 
-            div.append(value);
+            let field = makeFloatInput(value);
 
-            div.data("getValue", (() => value.val()).bind(this, value));
-}
+            field.on('change keyup', onUpdate);
+
+            div.append(field);
+
+            div.data("getValue", ((field) => parseFloat(field.val())).bind(this, field));
+        }
         break;
         case 'vec2':
-{
+        {
             div.addClass('vectorInputBox');
 
             value = resize(value, 2);
 
-            var x = makeFloatInput(value[0])
+            let x = makeFloatInput(value[0])
                 .addClass('vectorInput2')
                 .addClass('x')
                 .on('change input keyup', onUpdate);
             div.append(x);
 
-            var y = makeFloatInput(value[1])
+            let y = makeFloatInput(value[1])
                 .addClass('vectorInput2')
                 .addClass('y')
                 .on('change input keyup', onUpdate);
             div.append(y);
 
-            div.data("getValue", ((x, y) => [ x.val(), y.val() ]).bind(this, x, y));
-}
+            div.data("getValue", ((x, y) => [ x.val(), y.val() ].map(parseFloat)).bind(this, x, y));
+        }
         break;
         case 'vec3':
-{
+        {
             value = resize(value, 3);
 
             div.addClass('vectorInputBox');
 
-            var x = makeFloatInput(value[0])
+            let x = makeFloatInput(value[0])
                 .addClass('vectorInput3')
                 .addClass('x')
                 .on('change input keyup', onUpdate);
             div.append(x);
 
-            var y = makeFloatInput(value[1])
+            let y = makeFloatInput(value[1])
                 .addClass('vectorInput3')
                 .addClass('y')
                 .on('change input keyup', onUpdate);
             div.append(y);
 
-            var z = makeFloatInput(value[2])
+            let z = makeFloatInput(value[2])
                 .addClass('vectorInput3')
                 .addClass('z')
                 .on('change input keyup', onUpdate);
             div.append(z);
 
-            div.data('getValue', (() => [ x.val(), y.val(), z.val() ]).bind(this, x, y, z));
-}
+            div.data('getValue', (() => [ x.val(), y.val(), z.val() ].map(parseFloat)).bind(this, x, y, z));
+        }
         break;
         case 'vec4':
-{
+        {
             value = resize(value, 4);
 
             div.addClass('vectorInputBox');
@@ -1349,11 +1738,11 @@ class Settings
                 .on('change input keyup', onUpdate);
             div.append(w);
 
-            div.data('getValue', (() => [ x.val(), y.val(), z.val(), w.val() ]).bind(this, x, y, z, w));
-}
+            div.data('getValue', (() => [ x.val(), y.val(), z.val(), w.val() ].map(parseFloat)).bind(this, x, y, z, w));
+        }
         break;
         case 't':
-{
+        {
             let table = $('<table>');
             let row = $('<tr>');
             let cell1 = $('<td>');
@@ -1439,6 +1828,211 @@ class Settings
         break;
         }
 
+        div.on('contextmenu', ((div, onUpdate, event) =>
+        {
+            let value = div.data('getValue')();
+            switch (value.length)
+            {
+                case 2:
+                    value = new THREE.Vector2(value[0], value[1]);
+                break;
+                case 3:
+                    value = new THREE.Vector3(value[0], value[1], value[2]);
+                break;
+                case 4:
+                    value = new THREE.Vector4(value[0], value[1], value[2], value[3]);
+                break;
+            }
+
+            const serialize = (value, type) =>
+            {
+                let COLOR = [ 'R', 'G', 'B', 'A' ];
+                let VECTOR = [ 'X', 'Y', 'Z', 'W' ];
+                let V = type === 'color' ? COLOR : VECTOR;
+                if (value instanceof THREE.Vector4)
+                {
+                    return `(${V[0]}=${value.x},${V[1]}=${value.y},${V[2]}=${value.z},${V[3]}=${value.w})`;
+                }
+                else if (value instanceof THREE.Vector3)
+                {
+                    return `(${V[0]}=${value.x},${V[1]}=${value.y},${V[2]}=${value.z})`;
+                }
+                else if (value instanceof THREE.Vector2)
+                {
+                    return `(${V[0]}=${value.x},${V[1]}=${value.y})`;
+                }
+                return value + '';
+            };
+
+            const deserialize = (data) =>
+            {
+                const re4 = /\([RX]=([-+]?[0-9]*\.?[0-9]+),[GY]=([-+]?[0-9]*\.?[0-9]+),[BZ]=([-+]?[0-9]*\.?[0-9]+),[AW]=([-+]?[0-9]*\.?[0-9]+)\)/;
+                const re3 = /\([RX]=([-+]?[0-9]*\.?[0-9]+),[GY]=([-+]?[0-9]*\.?[0-9]+),[BZ]=([-+]?[0-9]*\.?[0-9]+)\)/;
+                const re2 = /\([RX]=([-+]?[0-9]*\.?[0-9]+),[GY]=([-+]?[0-9]*\.?[0-9]+)\)/;
+                const re1 = /[-+]?[0-9]*\.?[0-9]+/;
+
+                const res = [ re4, re3, re2, re1 ];
+                const types = [ THREE.Vector4, THREE.Vector3, THREE.Vector2, 'float' ];
+
+                const run_res = () =>
+                {
+                    for(let i = 0; i < res.length; ++i)
+                    {
+                        let re = res[i];
+
+                        var m = re.exec(data);
+                        if (m)
+                        {
+                            let type = types[i];
+                            if (typeof(type) !== 'function')
+                            {
+                                if (m.length === 1)
+                                {
+                                    return m[0]
+                                }
+                                else
+                                {
+                                    return m.slice(1).map(parseFloat);
+                                }
+                            }
+                            else
+                            {
+                                m = m.slice(1).map(parseFloat);
+                                m.unshift(this);
+                                return new (Function.prototype.bind.apply(type, m));
+                            }
+                        }
+                    }
+                }
+
+                let match = run_res();
+                return match;
+            };
+
+            const copyToClipboard = str => {
+                const el = document.createElement('textarea');
+                el.value = str;
+                el.setAttribute('readonly', '');
+                el.style.position = 'absolute';
+                el.style.left = '-9999px';
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+            };
+
+            const getClipboardText = () =>
+            {
+                const el = document.createElement('textarea');
+                el.value = '';
+                el.style.position = 'absolute';
+                el.style.left = '-9999px';
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand("paste");
+                let value = el.value;
+                document.body.removeChild(el);
+                return value;
+            };
+
+            const makeContextMenu = ((value, div, onUpdate) =>
+            {
+                let menu = $('<div>');
+                menu.addClass('contextMenu');
+
+                if (value.length === 1)
+                {
+                    let copy = $('<div>');
+                    copy.addClass('contextMenuItem');
+                    copy.text('Copy');
+                    copy.on('click', ((value) =>
+                    {
+                        menu.remove();
+                        this.childWindows.remove(menu);
+                        let data = serialize(value);
+                        copyToClipboard(data);
+                    }).bind(this, value));
+                    menu.append(copy);
+                } else {
+                    let copyAsVector = $('<div>');
+                    copyAsVector.addClass('contextMenuItem');
+                    copyAsVector.text('Copy as vector');
+                    copyAsVector.on('click', ((value) =>
+                    {
+                        menu.remove();
+                        this.childWindows.remove(menu);
+                        let data = serialize(value, 'vector');
+                        copyToClipboard(data);
+                    }).bind(this, value));
+                    menu.append(copyAsVector);
+
+                    let copyAsColor = $('<div>');
+                    copyAsColor.addClass('contextMenuItem');
+                    copyAsColor.text('Copy as color');
+                    copyAsColor.on('click', ((value) =>
+                    {
+                        menu.remove();
+                        this.childWindows.remove(menu);
+                        let data = serialize(value, 'color');
+                        copyToClipboard(data);
+                    }).bind(this, value));
+                    menu.append(copyAsColor);
+                }
+
+                let paste = $('<div>');
+                paste.addClass('contextMenuItem');
+                paste.text('Paste');
+                paste.on('click', ((value, div, onUpdate) =>
+                {
+                    menu.remove();
+                    this.childWindows.remove(menu);
+                    let data = getClipboardText();
+                    data = deserialize(data);
+                    div.data('getValue', ((data) => { return data; }).bind(this, data));
+                    this.onSettingsUpdate();
+                    this.updateUI();
+                }).bind(this, value, div, onUpdate));
+                menu.append(paste);
+
+
+                let clear = $('<div>');
+                clear.addClass('contextMenuItem');
+                clear.text('Clear');
+                clear.on('click', ((value, div, onUpdate) =>
+                {
+                    menu.remove();
+                    this.childWindows.remove(menu);
+                    let data = [ 0 ] * value.length || 0;
+                    div.data('getValue', ((data) => { return data; }).bind(this, data));
+                    this.onSettingsUpdate();
+                    this.updateUI();
+                }).bind(this, value, div, onUpdate));
+                menu.append(clear);
+
+                menu.isContextMenu = true;
+
+                return menu;
+            }).bind(this, value, div, onUpdate);
+
+            let menu = makeContextMenu();
+
+            menu.css({
+                'z-index': window.maxZIndex++,
+                marginLeft: event.clientX,
+                marginTop: event.clientY
+            });
+
+            $('body').append(menu);
+            this.childWindows.add(menu);
+
+            $(window).click(((menu) =>
+            {
+                menu.remove();
+                this.childWindows.remove(menu);
+            }).bind(this, menu));
+
+        }).bind(this, div, onUpdate));
+
         return div;
     }
 
@@ -1510,6 +2104,8 @@ class Settings
 
     buildField(key, name, type)
     {
+        let uniformKey = key ? [ key, name ] : [ name ];
+
         let value = 0;
 
         if (key)
@@ -1530,8 +2126,9 @@ class Settings
             }
         }
 
-        var field = this.getInputFieldForType(type, value, name);
+        var field = this.getInputFieldForType(type, value, name, uniformKey);
         var row = $('<tr>')
+            .addClass('settingsRow')
             .append(
                 $('<td>')
                 .addClass('column1')
@@ -1546,7 +2143,9 @@ class Settings
                 .append(field)
             );
 
-        row.data('getValue', field.data('getValue'));
+        row.data('getValue', () => field.data('getValue')());
+
+        row.data('uniformKey', field.data('uniformKey'));
 
         return row;
     }
@@ -1554,6 +2153,7 @@ class Settings
 }
 
 window.settings = new Settings();
+
 
 
 function CreateUniformsFromDesc(uniformsDesc, texturesDesc, values)
@@ -1588,7 +2188,6 @@ function CreateUniformsFromDesc(uniformsDesc, texturesDesc, values)
                 return new THREE.Vector4(0, 0, 0, 0);
                 break;
         }
-
         return undefined;
     }
 
@@ -1607,14 +2206,18 @@ function CreateUniformsFromDesc(uniformsDesc, texturesDesc, values)
 
         var textureValue = undefined;
 
-        if (values && tex in values) {
+        if (values && tex in values)
+        {
             var data = values[tex];
-            if (data) {
-                textureValue = data ? (data.value ? data.value : DefaultTexture) : DefaultTexture;
+            if (data && data.value)
+            {
+                textureValue = data.value;
 
-                if (data.settings) {
+                if (data.settings)
+                {
                     Object.assign(textureValue, data.settings);
-                    if (textureValue.image) {
+                    if (textureValue.image)
+                    {
                         textureValue.needsUpdate = true;
                     }
                 }
@@ -1633,6 +2236,51 @@ window.addEventListener("message", event =>
 {
     switch(event.data.command)
     {
+        case 'saveImage':
+        {
+            let data = event.data.data;
+            RenderToFile(data.width, data.height, data.mimeType)
+            .then(dataUrl =>
+            {
+                window.settings.postMessage({
+                    type: 'saveImage',
+                    data: {
+                        mimeType: data.mimeType,
+                        path: data.path,
+                        width: data.width,
+                        height: data.height,
+                        image: dataUrl
+                    }
+                })
+            });
+        }
+        break;
+        case 'compileShader':
+        {
+            if (!window.wasm)
+            {
+                console.error("received request to compile a shader but don't have WASM enabled");
+                break;
+            }
+            let data = event.data.data;
+            let handleResponse = (result) =>
+            {
+                window.settings.vscode.postMessage({
+                    type: 'shader',
+                    data: {
+                        version: data.version,
+                        documentId: data.documentId,
+                        success: result.success,
+                        error: result.error,
+                        reflection: result.reflection,
+                        glsl: result.glsl,
+                        metadata: data.metadata
+                    }
+                });
+            };
+            window.wasm.compile(data.code, data).then(handleResponse, handleResponse);
+        }
+        break;
         case 'updateFragmentShader':
             window.fragmentShaderCode = event.data.data.code;
             window.uniformsDesc = event.data.data.uniforms;
@@ -1645,7 +2293,6 @@ window.addEventListener("message", event =>
             {
                 window.settings.update(window.uniformsDesc);
             }
-
             UpdateMaterial();
         break;
         case 'updateVertexShader':
@@ -1660,7 +2307,7 @@ window.addEventListener("message", event =>
         case 'showErrorMessage':
             if (window.settings)
             {
-                window.settings.setErrorMessage(event.data.data);
+                window.settings.setErrorMessage(event.data.data.message, event.data.data.documentId);
             }
         break;
         case 'loadUniforms':
@@ -1790,7 +2437,7 @@ function ShaderModeMesh()
         window.vertexShaderCode = document.getElementById( 'vertexShaderMesh' ).textContent;
     }
 
-    window.mesh = new THREE.Mesh(new THREE.SphereGeometry( 100, 256, 256 ), window.material);
+    window.mesh = new THREE.Mesh(new CurrentGeometryClass(100, CurrentGeometrySubdivisions, CurrentGeometrySubdivisions), window.material);
 
     if (scene)
     {
@@ -1938,6 +2585,18 @@ function render()
 
 $(document).ready(() =>
 {
+    if (WASMCompiler)
+    {
+         window.wasm = new WASMCompiler();
+         window.wasm.onRuntimeInitialized = () => {
+            window.settings.vscode.postMessage({
+                type: 'ready',
+                data: { }
+            });
+            window.settings.requestData();
+         }
+    }
+
     if (!window.vertexShaderCode)
     {
         window.vertexShaderCode = document.getElementById( 'vertexShader' ).textContent;
@@ -1958,4 +2617,26 @@ $(document).ready(() =>
     init();
 
     animate();
+
+    var waiting = 2;
+
+    window.onerror = (msg, url, line, col, error) =>
+    {
+        // Note that col & error are new to the HTML 5 spec and may not be
+        // supported in every browser.  It worked for me in Chrome.
+        let extra = !col ? '' : '\ncolumn: ' + col;
+        extra += !error ? '' : '\nerror: ' + error;
+
+        // You can view the information in an alert to see things working like this:
+        console.log("Error: " + msg + "\nurl: " + url + "\nline: " + line + extra);
+
+        // TODO: Report this error via ajax so you can keep track
+        //       of what pages have JS issues
+
+        let suppressErrorAlert = false;
+        // If you return true, then error alerts (like in older versions of
+        // Internet Explorer) will be suppressed.
+        return suppressErrorAlert;
+     };
 });
+
