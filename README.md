@@ -42,10 +42,12 @@ To create a custom shader parameter declare a global variable or use `// INPUTS(
 #### DirectX Compiler
 1. Compile or download a build of DirectX Shader Compiler:
 https://github.com/Microsoft/DirectXShaderCompiler.
-1. Add `dxc` executable to `PATH` or set `hlsl.preview.dxcExecutablePath`.
-1. Add your shader include directories to `hlsl.preview.dxcIncludeDirs`. (Optional)
+1. Add `dxc` executable to `PATH` or set `hlsl.preview.dxc.executablePath`.
+1. Add your shader include directories to `hlsl.preview.dxc.includeDirs`. (Optional)
 
 #### SPIRV-Cross
 1. Compile or download a build of SPIRV-Cross:
 https://github.com/KhronosGroup/SPIRV-Cross.
-1. Add `SPIRV-Cross` executable to `PATH` or set `hlsl.preview.spirvcrossExecutablePath`.
+1. Add `SPIRV-Cross` executable to `PATH` or set `hlsl.preview.spirv.executablePath`.
+
+Set `hlsl.preview.useNativeBinaries` to `true`.

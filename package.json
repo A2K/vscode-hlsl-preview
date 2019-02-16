@@ -2,7 +2,7 @@
 	"name": "hlsl-preview",
 	"displayName": "HLSL preview",
 	"description": "Real time preview for HLSL shaders",
-	"version": "0.8.2",
+	"version": "0.8.3",
 	"publisher": "A2K",
 	"icon": "media/images/icon.png",
 	"bugs": {
