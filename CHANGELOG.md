@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.9.1
+* Improved #inlude statements support
+* Added buffers
+
 ## 0.8.2
 
 * Added Emscripten WebAssemblies for DirectXCompiler and SPIRV-Cross.

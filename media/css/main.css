@@ -1,0 +1,758 @@
+@charset "UTF-8";
+.BuffersListView {
+  cursor: default;
+  display: block; }
+
+.BufferListItemView {
+  position: relative;
+  background: #4b4b4b;
+  margin-left: 8px;
+  margin-right: 8px;
+  padding-left: 4px;
+  margin-top: 4px;
+  padding-top: 0px;
+  padding-bottom: 3px;
+  display: block; }
+  .BufferListItemView div {
+    display: inline-block;
+    height: 20px; }
+  .BufferListItemView .Handle {
+    padding-left: 4px;
+    cursor: row-resize;
+    width: 15px;
+    height: 15px;
+    padding-right: 4px; }
+  .BufferListItemView .BufferSettings, .BufferListItemView .BufferRemove {
+    cursor: pointer;
+    width: 15px;
+    height: 15px;
+    text-align: right;
+    color: rgba(255, 255, 255, 0.5); }
+  .BufferListItemView .BufferSettings {
+    position: relative;
+    top: -1px;
+    padding-right: 8px; }
+  .BufferListItemView .BufferRemove {
+    position: absolute;
+    right: 6px;
+    top: 1.5px; }
+  .BufferListItemView .BufferSettings:hover {
+    color: rgba(255, 255, 255, 0.9); }
+  .BufferListItemView .BufferRemove:hover {
+    color: red; }
+  .BufferListItemView .BufferPreview {
+    cursor: pointer;
+    position: relative;
+    top: 1px;
+    margin-top: -10px;
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.5); }
+    .BufferListItemView .BufferPreview:hover {
+      color: rgba(255, 255, 255, 0.9); }
+    .BufferListItemView .BufferPreview.Enabled {
+      text-shadow: 0px 0px 4px white;
+      color: white; }
+
+.ShaderSettingsView {
+  max-height: 70vh; }
+
+.HeaderWindow {
+  position: fixed;
+  top: 3px;
+  left: 7px;
+  height: fit-content;
+  width: fit-content;
+  background: rgba(35, 35, 35, 0.95);
+  color: rgba(255, 255, 255, 0.9);
+  border: 0.5px solid rgba(255, 255, 255, 0.25);
+  padding: 8px;
+  opacity: 1;
+  overflow: hidden;
+  transition: 0s; }
+
+.Header {
+  position: absolute;
+  width: 100%;
+  margin-top: -8px;
+  margin-bottom: 0;
+  margin-left: -8px;
+  margin-right: -8px;
+  padding-left: 0;
+  padding-right: 0;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  text-align: center;
+  background: rgba(55, 55, 55, 0.8);
+  cursor: default;
+  height: 16px;
+  overflow: hidden; }
+
+.HeaderCloseButton {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  height: auto;
+  right: auto;
+  margin-left: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-right: auto;
+  padding-left: 13px;
+  padding-right: 8px;
+  font-size: 16px;
+  color: #FFF;
+  line-height: 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 18px;
+  background: transparent; }
+  .HeaderCloseButton:hover {
+    background: red; }
+  .HeaderCloseButton::before, .HeaderCloseButton::after {
+    position: absolute;
+    content: '';
+    width: 14px;
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.9); }
+  .HeaderCloseButton::before {
+    transform: rotate(45deg); }
+  .HeaderCloseButton::after {
+    transform: rotate(-45deg); }
+
+.WindowContent {
+  margin: 0;
+  padding: 0; }
+
+.HeaderSpacer {
+  height: 32px;
+  font-size: 14pt; }
+
+div.Settings {
+  transition: 0.1s; }
+  div.Settings.hidden {
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    padding: 3px;
+    border-radius: 50%; }
+    div.Settings.hidden:hover {
+      color: rgba(255, 255, 255, 0.75);
+      border: 0.5px solid rgba(255, 255, 255, 0.25);
+      background: rgba(0, 0, 0, 0.75);
+      transition: 0.1s; }
+
+div.Settings.hidden div.button {
+  margin-top: 0px;
+  margin-left: 2px;
+  margin-right: 2px;
+  position: relative;
+  top: -2px;
+  border: none;
+  width: auto;
+  padding-top: 0px;
+  padding-bottom: 0px;
+  background: transparent;
+  transition: 0s; }
+
+div.settingsScrollBox {
+  max-height: 600px;
+  overflow-y: scroll;
+  overflow-x: hidden; }
+
+.ModeSwitch {
+  margin-top: 0px;
+  margin-bottom: 6px; }
+  .ModeSwitch .Label, .ModeSwitch .Mode {
+    display: inline-block; }
+  .ModeSwitch .Label {
+    cursor: default;
+    position: relative;
+    top: -5px;
+    padding-right: 10px; }
+  .ModeSwitch .Mode {
+    width: 30px;
+    height: 22px;
+    cursor: pointer;
+    border: 0.5px solid rgba(255, 255, 255, 0.15);
+    text-align: center;
+    color: rgba(255, 255, 255, 0.75);
+    background: #2c2c2c;
+    transition: 0.1s;
+    margin-right: 5px;
+    overflow: hidden; }
+    .ModeSwitch .Mode.Active {
+      background: #6c6c6c; }
+    .ModeSwitch .Mode .Content {
+      position: relative;
+      top: 1.5px; }
+    .ModeSwitch .Mode:hover {
+      background: #3c3c3c;
+      border: 0.5px solid rgba(255, 255, 255, 0.45);
+      transition: 0.1s; }
+    .ModeSwitch .Mode.Active:hover {
+      background: #8c8c8c;
+      border: 0.5px solid rgba(255, 255, 255, 0.45);
+      transition: 0.1s; }
+    .ModeSwitch .Mode.cube .Content {
+      position: relative;
+      top: -1.5px;
+      font-size: 18px; }
+    .ModeSwitch .Mode.cylinder .Content {
+      position: relative;
+      top: -2.5px;
+      font-size: 17px; }
+    .ModeSwitch .Mode.cone .Content {
+      position: relative;
+      top: -2px;
+      font-size: 18px; }
+
+table.textureSettingsTable {
+  border-collapse: collapse;
+  width: 100%; }
+  table.textureSettingsTable td {
+    /* width: 100%; */
+    vertical-align: top; }
+  table.textureSettingsTable tr {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.1); }
+    table.textureSettingsTable tr td:first-child {
+      text-align: right;
+      padding-left: 16px;
+      padding-right: 8px; }
+    table.textureSettingsTable tr td:nth-child(1) {
+      width: 60px; }
+    table.textureSettingsTable tr:not(:last-child) {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.1);
+      border-bottom: 1pt solid black; }
+  table.textureSettingsTable td:first-child {
+    border-right: 1pt solid black; }
+
+table.textureSettingsInnerTable {
+  width: 100%; }
+  table.textureSettingsInnerTable tr td:not(:last-child) {
+    width: 75px;
+    text-align: right; }
+  table.textureSettingsInnerTable tr td:last-child {
+    text-align: left; }
+  table.textureSettingsInnerTable input[type=checkbox] {
+    width: fit-content; }
+
+table.textureSettingsTable select {
+  background: black;
+  color: white;
+  border: 1px solid grey;
+  width: 75px; }
+
+div.textureSettingsActivationButton {
+  display: inline;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.75); }
+  div.textureSettingsActivationButton:hover {
+    display: inline;
+    cursor: pointer;
+    color: white; }
+
+div.HeaderWindow.textureSettings:hover {
+  background: rgba(0, 0, 0, 0.75);
+  opacity: 1;
+  transition: 0.25s; }
+
+.loading {
+  height: auto;
+  text-align: center;
+  color: #4c3f2e;
+  position: relative;
+  overflow: hidden;
+  padding: 1rem;
+  margin: 3%;
+  font-style: italic; }
+
+.loadingIndicator .background {
+  position: absolute;
+  left: -146px;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: -1;
+  background: repeating-linear-gradient(45deg, #e6a00b, #e6a00b 40px, black 40px, black 90px);
+  animation-name: MOVE-BG;
+  animation-duration: 1.0s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite; }
+
+div.loadingIndicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  z-index: 999999999999;
+  display: flex;
+  align-items: center;
+  justify-content: center; }
+  div.loadingIndicator div.text {
+    color: white;
+    position: fixed;
+    width: 250px;
+    height: 50px;
+    border: 3px solid #e6a00b;
+    box-shadow: 5px 5px 50px 0px rgba(0, 0, 0, 0.25);
+    background: black;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 20px; }
+
+div.errorMessage {
+  position: fixed;
+  right: 3px;
+  bottom: 7px;
+  margin-left: 7px;
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.9);
+  border: 0.5px solid rgba(255, 0, 0, 0.25);
+  padding: 8px;
+  white-space: pre-wrap;
+  font-family: 'Courier New', Courier, monospace; }
+
+div.errorMessageLine.mainMessage {
+  font-weight: bolder;
+  color: rgba(225, 225, 225, 0.9); }
+
+div.errorMessage {
+  max-height: 50%;
+  width: auto;
+  overflow-y: auto;
+  overflow-x: hidden; }
+  div.errorMessage div.errorMessageLine div {
+    display: inline; }
+  div.errorMessage div.filename::after, div.errorMessage div.line::after, div.errorMessage div.column::after, div.errorMessage div.warning::after, div.errorMessage div.error::after {
+    content: ":";
+    color: rgba(255, 255, 255, 0.5); }
+  div.errorMessage div.line {
+    color: white; }
+  div.errorMessage div.errorLocation:hover div.line {
+    color: inherit; }
+  div.errorMessage div.error::before {
+    content: " "; }
+  div.errorMessage div.errorLocation {
+    cursor: pointer; }
+    div.errorMessage div.errorLocation:hover {
+      color: #e1e1ff; }
+  div.errorMessage div.message::before {
+    content: " "; }
+  div.errorMessage div.level.error {
+    color: rgba(255, 125, 125, 0.9); }
+  div.errorMessage div.level.warning {
+    color: rgba(195, 195, 0, 0.9); }
+
+#errorFrame {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 0;
+  background: repeating-linear-gradient(45deg, rgba(255, 125, 125, 0.5), rgba(255, 125, 125, 0.5) 40px, rgba(0, 0, 0, 0.1) 40px, rgba(0, 0, 0, 0.1) 90px); }
+  #errorFrame.fixed {
+    background: repeating-linear-gradient(45deg, rgba(125, 255, 125, 0.25), rgba(125, 255, 125, 0.25) 40px, rgba(0, 0, 0, 0.01) 40px, rgba(0, 0, 0, 0.01) 90px); }
+
+div.ContextMenu {
+  position: fixed;
+  width: fit-content;
+  height: fit-content;
+  top: 0px;
+  left: 0px;
+  cursor: default;
+  background: rgba(0, 0, 0, 0.75);
+  color: rgba(255, 255, 255, 0.9);
+  border: 0.5px solid rgba(255, 255, 255, 0.25); }
+
+div.contextMenuItem {
+  cursor: default;
+  padding: 4px;
+  padding-left: 8px;
+  padding-right: 8px;
+  min-width: 75px; }
+  div.contextMenuItem:hover {
+    background: rgba(255, 255, 255, 0.1); }
+
+.Group {
+  overflow: hidden;
+  padding: 4px;
+  padding-bottom: 0;
+  margin-top: 4px;
+  margin-bottom: 0px;
+  border-bottom: none;
+  border: 1px solid #202020;
+  background: #333333; }
+  .Group .Title {
+    height: 21px;
+    border-bottom: none;
+    background: #3c3c3c;
+    cursor: pointer;
+    position: relative;
+    left: -4px;
+    top: -4px;
+    margin-right: -8px;
+    margin-bottom: -8px;
+    padding-left: 20px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    font-size: 14px; }
+    .Group .Title:before {
+      position: absolute;
+      left: 6px;
+      top: 3px;
+      font-size: 10px;
+      width: 15px;
+      content: '▷'; }
+  .Group:hover .Title:before {
+    content: '▶'; }
+  .Group.Collapsed {
+    transition: 0.25s;
+    height: 18px; }
+    .Group.Collapsed *:not(.Title) {
+      height: 0px;
+      max-height: 0px;
+      transition: 0.25s;
+      max-height: 0px;
+      overflow: hidden;
+      opacity: 0; }
+  .Group.Expanded {
+    transition: 0.25s;
+    height: auto;
+    padding-bottom: 4px;
+    margin-bottom: 4px; }
+    .Group.Expanded *:not(.Title) {
+      transition: 0.25s; }
+    .Group.Expanded .Title {
+      margin-bottom: 0;
+      box-shadow: 0px 1px 10px rgba(0, 0, 0, 0.1);
+      background: #4b4b4b; }
+      .Group.Expanded .Title:before {
+        content: '▽'; }
+      .Group.Expanded .Title:hover:before {
+        content: '▼'; }
+
+.IfdefFieldView input[type=checkbox] {
+  position: relative;
+  top: 2px;
+  left: 6px; }
+
+.IfdefFieldView:hover {
+  background: red; }
+
+.IfdefsSettingsView table {
+  width: 100%;
+  border-collapse: collapse;
+  border-left: 0px;
+  border-right: 0px; }
+
+.IfdefsSettingsView tr td:last-child label {
+  display: inline-block;
+  width: 100%; }
+
+.IfdefsSettingsView tr:hover {
+  background: rgba(75, 75, 75, 0.9); }
+
+.UniformsSettingsView table {
+  border-left: 0px;
+  border-right: 0px;
+  border-collapse: collapse; }
+  .UniformsSettingsView table tr td:first-child {
+    text-align: right;
+    font-size: 12px;
+    text-shadow: 0px 0px 4px black; }
+
+.UniformFieldView:hover {
+  background: rgba(75, 75, 75, 0.9); }
+
+.ScrollView {
+  overflow-y: auto;
+  overflow-x: hidden; }
+
+.vectorInputBox {
+  display: inline-block;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap; }
+
+.vectorInput2 {
+  display: inline-block;
+  width: 48.5%; }
+
+.vectorInput3 {
+  display: inline-block;
+  width: 31.25%; }
+
+.vectorInput4 {
+  display: inline-block;
+  width: 22.5%; }
+
+input, select {
+  color: rgba(255, 255, 255, 0.9);
+  background: black;
+  font-size: 8pt;
+  font-family: Arial, Helvetica, sans-serif;
+  width: 100%;
+  border: 1px solid rgba(150, 150, 150, 0.5);
+  padding: 1px;
+  padding-left: 2px;
+  margin: 0; }
+  input:hover, select:hover {
+    border: 1px solid rgba(255, 255, 255, 0.5); }
+  input:focus, input:active, input:focus:active, select:focus, select:active, select:focus:active {
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.5); }
+
+.inputBox {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+  width: 150px;
+  margin-right: 4px; }
+
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0; }
+
+div.displayFileInput {
+  cursor: pointer; }
+  div.displayFileInput:hover {
+    color: rgba(225, 175, 110, 0.9); }
+
+div.displayOpen {
+  display: inline-block;
+  padding-right: 5px;
+  padding-bottom: 2px; }
+
+div.displayFilename {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+  position: relative;
+  top: 3px; }
+
+input.ifdefCheckbox {
+  width: fit-content; }
+
+input[type=checkbox] {
+  display: inline-block;
+  cursor: pointer;
+  visibility: hidden;
+  position: relative;
+  top: 0;
+  left: 0; }
+  input[type=checkbox]:before, input[type=checkbox]:after {
+    position: absolute;
+    top: 0;
+    left: 0;
+    visibility: visible;
+    display: block;
+    width: 11px;
+    height: 11px;
+    content: ''; }
+  input[type=checkbox]:before {
+    background: black;
+    transition: opacity 0.1s ease-out;
+    border: 1px solid rgba(155, 155, 155, 0.75); }
+  input[type=checkbox]:hover:before {
+    transition: opacity 0.1s ease-out;
+    border: 1px solid rgba(205, 205, 205, 0.9); }
+  input[type=checkbox]:after {
+    opacity: 0;
+    transition: opacity 0.1s ease-out;
+    content: '✔';
+    left: 2.5px;
+    top: -2px; }
+  input[type=checkbox]:checked:after {
+    opacity: 1;
+    transition: opacity 0.1s ease-out; }
+
+input[type=radio] {
+  display: inline-block;
+  cursor: pointer;
+  visibility: hidden;
+  position: relative;
+  top: 0;
+  left: 0; }
+  input[type=radio]:before, input[type=radio]:after {
+    background: black;
+    position: absolute;
+    top: 0;
+    left: 0;
+    visibility: visible;
+    display: block;
+    width: 11px;
+    height: 11px;
+    content: ' ';
+    border: 1px solid rgba(155, 155, 155, 0.75);
+    border-radius: 50%; }
+  input[type=radio]:hover:before, input[type=radio]:hover:after {
+    border: 1px solid rgba(205, 205, 205, 0.9); }
+  input[type=radio]:after {
+    opacity: 0;
+    transition: opacity 0.1s ease-out;
+    background: radial-gradient(#cdcdcd 0%, #cdcdcd 35%, #323232 55%, rgba(0, 0, 0, 0) 100%); }
+  input[type=radio]:checked:after {
+    opacity: 1;
+    transition: opacity 0.1s ease-out; }
+
+html, body {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; }
+
+#content {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0; }
+  #content canvas {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    margin: 0; }
+
+div.button {
+  cursor: pointer;
+  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  text-align: center;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100px;
+  margin-top: 4px;
+  margin-bottom: 1px;
+  padding-top: 1px;
+  padding-bottom: 4px;
+  color: rgba(255, 255, 255, 0.75);
+  background: #2c2c2c; }
+  div.button:hover {
+    background: #3c3c3c;
+    border: 0.5px solid rgba(255, 255, 255, 0.45);
+    transition: 0.1s; }
+  div.button:active {
+    background: #1c1c1c;
+    border: 0.5px solid rgba(255, 255, 255, 0.65); }
+
+.column1 {
+  cursor: default;
+  font-size: 12px;
+  text-align: right;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe WPC, Segoe UI, HelveticaNeue-Light, Ubuntu, Droid Sans, sans-serif; }
+
+table.settings {
+  padding-right: 5px; }
+
+.floatScrollMarker {
+  width: 100px;
+  height: 100px;
+  position: fixed;
+  background: transparent;
+  color: rgba(225, 225, 225, 0.9);
+  cursor: w-resize; }
+  .floatScrollMarker p {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    text-shadow: 2px 2px #000000; }
+
+@keyframes MOVE-BG {
+  from {
+    transform: translateX(0); }
+  to {
+    transform: translateX(130px); } }
+
+.buttons {
+  width: 100%; }
+  .buttons .button {
+    margin-left: 4px;
+    margin-right: 4px;
+    display: inline-block;
+    width: 100px;
+    padding-top: 3px;
+    height: 17px; }
+
+.Filename {
+  color: rgba(95, 225, 255, 0.7); }
+  .Filename:hover {
+    color: rgba(95, 225, 255, 0.9); }
+
+.BufferBound .Filename {
+  color: rgba(25, 255, 150, 0.7);
+  cursor: pointer; }
+  .BufferBound .Filename:hover {
+    color: rgba(25, 255, 150, 0.9); }
+
+.Empty .Filename {
+  color: rgba(95, 95, 95, 0.9);
+  cursor: pointer; }
+  .Empty .Filename:hover {
+    color: rgba(195, 195, 195, 0.9); }
+
+.ResolutionSelect {
+  display: block;
+  width: 12px;
+  height: 12px;
+  position: relative;
+  top: 5px; }
+
+.Realtime {
+  text-align: left;
+  padding: 0;
+  margin: 0;
+  margin-right: auto;
+  width: fit-content;
+  position: relative;
+  top: 3px;
+  left: 2px; }
+
+.ShaderSettingsTable tr td:first-child {
+  text-align: right; }
+
+.ResolutionInput {
+  display: block;
+  width: 100px;
+  white-space: nowrap; }
+  .ResolutionInput input {
+    position: initial;
+    display: inline; }
+  .ResolutionInput .ResolutionInputX,
+  .ResolutionInput .ResolutionInputY {
+    display: inline-block;
+    width: 50%; }
+
+.ShaderSettingsTable td {
+  vertical-align: top; }
+
+*, div, html {
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: -moz-none;
+  -o-user-select: none;
+  user-select: none;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+.FPS {
+  position: fixed;
+  top: 0;
+  right: 4px;
+  font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif; }

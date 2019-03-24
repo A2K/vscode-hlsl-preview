@@ -1,0 +1,4 @@
+class VertexShader extends Shader
+{
+
+};

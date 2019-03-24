@@ -1,6 +1,6 @@
 'use strict';
 
-import * as Constants from './Constants';
+import * as Constants from './WebView/Constants';
 import ShaderDocument from './ShaderDocument';
 import { ShaderType } from './Enums';
 
@@ -30,6 +30,7 @@ export default class GLSLCode
 
     constructor(shaderDocument: ShaderDocument, code: string, reflection: {[key:string]: any})
     {
+        // console.log('reflection:', reflection);
         this.shaderDocument = shaderDocument;
         this.code = code.replace(/^#version.*$/gm, '');
         this.reflection = reflection;
@@ -116,6 +117,8 @@ export default class GLSLCode
                                     break;
                                     case 'float':
                                         this.replaceInCode(input.name, 'position.x');
+                                    case 'float':
+                                        this.replaceInCode(input.name, 'position.x');
                                     break;
                                     default:
                                         this.replaceInCode(input.name, 'position');
@@ -142,12 +145,19 @@ export default class GLSLCode
             const re = /^(\s*gl_Position\s*=\s*param_var_[a-zA-Z0-9_]+\s*;\n)\s*gl_Position\.y\s*=\s*-\s*gl_Position\.y\s*;/m;
             this.code = this.code.replace(re, "$1");
 
-            this.code = 'precision highp float;\n' + this.code;
+            this.code.replace(/precision\s+(\w+)\s+(float|int)/, 'precision highp $2');
+
+            if (!(/precision\s+(\w+)\s+float/.test(this.code)))
+            {
+                this.code = 'precision highp float;\n' + this.code;
+            }
         }
         else
         {
             this.code = this.code.replace('gl_FragData[0]', 'gl_FragColor');
         }
+
+        this.code = this.code.replace(/for\s*\(\s*;\s*;\s*\)/gm, 'for(int i = 0; i < 1; ++i)');
 
         let prefix = (shaderDocument.shaderType === ShaderType.vertex) ? 'out_var_' : 'in_var_';
 
@@ -183,26 +193,18 @@ export default class GLSLCode
             {
                 let structName:string = this.reflection['types'][key]['name'];
 
-                structName = structName.replace(/^type_/, '');
-
-                Object.keys(this.reflection['types'][key]['members']).forEach((memberKey) =>
+                if (structName === 'type__Globals')
                 {
-					let member:{[key:string]:any} = this.reflection['types'][key]['members'][memberKey];
-					let name = member['name'];
-					let type = member['type'];
-
-                    if (structName === '_Globals' && (Constants.InternalParameters.indexOf(name) >= 0))
+                    Object.keys(this.reflection['types'][key]['members']).forEach((name: string) =>
                     {
-						return;
-					}
+                        let desc = this.reflection['types'][key]['members'][name];
 
-                    if (!(structName in uniforms))
-                    {
-						uniforms[structName] = { };
-                    }
+                        (uniforms['_Globals'] || (uniforms['_Globals'] = {}))[desc.name] = {
+                            type: desc.type
+                        };
+                });
+                }
 
-					uniforms[structName][name] = type;
-				});
 			});
 		}
 

@@ -5,11 +5,13 @@ import * as vscode from 'vscode';
 
 import ShaderDocument from './ShaderDocument';
 import GLSLCode from './GLSLCode';
+import ChildProcess from './ChildProcess';
 
 
 export default class GLSLCompiler
 {
     private defaultArgs: string[] = [ '--version', '2.0', '--es' ];
+    // , '--vulkan-semantics', '--shader-model', '20'
 
     private executable: string = "SPIRV-Cross.exe";
 
@@ -29,7 +31,7 @@ export default class GLSLCompiler
         }
     }
 
-    public canUseNativeBinary(): Promise<boolean>
+    public async canUseNativeBinary(): Promise<boolean>
     {
         return new Promise<boolean>((resolve) =>
         {
@@ -46,66 +48,35 @@ export default class GLSLCompiler
             {
                 if (code !== 0)
                 {
-                    console.error(`SPIRV[${this.executable}] exited with non-zero code: ${code}`);
+                    console.error(`GLSLCompiler.canUseNativeBinary(): SPIRV[${this.executable}] exited with non-zero code: ${code}`);
                 }
                 resolve(code === 0);
             });
         });
     }
 
-    public Compile(filename: string, reflect: boolean = false): Promise<string>
+    public async Compile(filename: string, reflect: boolean = false): Promise<string>
     {
-        return new Promise<string>((resolve, reject) =>
+        let options = vscode.workspace.rootPath ? { cwd: vscode.workspace.rootPath } : undefined;
+
+        let args: string[] = reflect ? [ '--reflect' ].concat(Array.from(this.defaultArgs)) : Array.from(this.defaultArgs);
+
+        args.push(filename);
+
+        // console.log(`Starting "${this.executable} ${args.join(' ')}"`);
+
+        let process = await ChildProcess.Execute(this.executable, args, options);
+
+        if (process.exitCode === 0)
         {
-            let options = vscode.workspace.rootPath ? { cwd: vscode.workspace.rootPath } : undefined;
-
-            let args: string[] = reflect ? [ '--reflect' ].concat(Array.from(this.defaultArgs)) : Array.from(this.defaultArgs);
-
-            args.push(filename);
-
-            //console.log(`Starting "${this.executable} ${args.join(' ')}"`);
-
-            let childProcess = cp.spawn(this.executable, args, options);
-
-            childProcess.on('error', (error: Error) =>
-            {
-                console.error('childProcess error:', error);
-                reject(error);
-            });
-
-            if (!childProcess.pid)
-            {
-                let errorMessage = "no child process pid (failed to create process)";
-                console.error(errorMessage);
-                reject(errorMessage);
-                return;
-            }
-
-            var CompleteData: string = "";
-
-            childProcess.stdout.on('data', (data: Buffer) =>
-            {
-                CompleteData += data.toString();
-            });
-
-            var err: string = "";
-            childProcess.stderr.on('data', (data: Buffer) =>
-            {
-                err += data.toString();
-            });
-
-            childProcess.on('exit', (code) =>
-            {
-                if (code === 0)
-                {
-                    resolve(CompleteData);
-                }
-                else
-                {
-                    reject(err);
-                }
-            });
-        });
+            return process.buffers.stdout;
+        }
+        else
+        {
+            throw new Error(process.buffers.stderr
+                            ? process.buffers.stderr
+                            : `existed with non-zero code: ${process.exitCode}`);
+        }
     }
 
     public Process(shaderDocument: ShaderDocument, filename: string): Promise<GLSLCode>

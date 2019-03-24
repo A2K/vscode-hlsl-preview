@@ -27,26 +27,25 @@ div.settingsScrollBox {
     overflow-x: hidden;
 }
 
-div.Settings {
+.HeaderWindow {
     position: fixed;
     top: 3px;
     left: 7px;
     height: fit-content;
     width: fit-content;
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(35, 35, 35, 0.95);
     color: rgba(255, 255, 255, 0.9);
     border: 0.5px solid rgba(255, 255, 255, 0.25);
     padding: 8px;
     opacity: 0.5;
-    transition: 0.25s;
     overflow: hidden;
+    transition: 0.5s;
 }
-
 div.Settings:hover,
 div.Settings.hover {
     background: rgba(0, 0, 0, 0.75);
     opacity: 1;
-    transition: 0.25s;
+    transition: 0.5s;
 }
 
 div.Settings.hidden {
@@ -56,13 +55,14 @@ div.Settings.hidden {
     border: 0.5px solid rgba(255, 255, 255, 0.1);
     padding: 3px;
     border-radius: 50%;
-    transition: 0.25s;
+    /* transition: 0.25s; */
 }
 
 div.Settings.hidden:hover {
     color: rgba(255, 255, 255, 0.75);
-    border: 0.5px solid rgba(255, 255, 255, 0.75);
+    border: 0.5px solid rgba(255, 255, 255, 0.25);
     background: rgba(0, 0, 0, 0.75);
+    transition: 0.25s;
 }
 
 .vectorInputBox {
@@ -169,11 +169,10 @@ div.Settings.hidden div.button {
     top: -2px;
     border: none;
     width: auto;
-
     padding-top: 0px;
     padding-bottom: 0px;
     background: transparent;
-    transition: 0.25s;
+    transition: 0.1s;
 }
 
 .column1 {
@@ -189,22 +188,8 @@ input[type=number]::-webkit-outer-spin-button {
       margin: 0;
 }
 
-div.textureSettings {
-    position: fixed;
-    left: 7px;
-    top: 3px;
-    width: fit-content;
-    height: fit-content;
-    background: rgba(0, 0, 0, 0.75);
-    color: rgba(255, 255, 255, 0.9);
-    border: 0.5px solid rgba(255, 255, 255, 0.25);
-    padding: 8px;
-    cursor: default;
-    opacity: 0.5;
-    transition: 0.25s;
-}
 
-div.textureSettings:hover {
+div.HeaderWindow.textureSettings:hover {
     background: rgba(0, 0, 0, 0.75);
     opacity: 1;
     transition: 0.25s;
@@ -269,6 +254,67 @@ table.textureSettingsTable select {
     width: 75px;
 }
 
+.Header {
+    position: absolute;
+    width: 100%;
+    margin-top: -8px;
+    margin-bottom: 0;
+    margin-left: -8px;
+    margin-right: -8px;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    text-align: center;
+    background: rgba(55, 55, 55, 0.8);
+    cursor: default;
+    height: 16px;
+    /* overflow: hidden; */
+}
+
+.Header .CloseButton {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: auto;
+    right: auto;
+    margin-left: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-right: auto;
+    padding-left: 13px;
+    padding-right: 8px;
+    font-size: 16px;
+    color: #FFF;
+    line-height: 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 18px;
+    background: transparent;
+}
+.Header .CloseButton:hover {
+    background: red;
+}
+.Header .CloseButton::before,
+.Header .CloseButton::after {
+    position: absolute;
+    content: '';
+    width: 14px;
+    height: 1px; /* cross thickness */
+    background-color: white;
+}
+
+.Header .CloseButton::before {
+    transform: rotate(45deg);
+}
+
+.Header .CloseButton::after {
+    transform: rotate(-45deg);
+}
+
 div.textureSettingsHeader {
     position: absolute;
     width: 100%;
@@ -284,8 +330,7 @@ div.textureSettingsHeader {
     background: rgba(255, 255, 255, 0.1);
 }
 
-
-#headerSpacer {
+div.HeaderSpacer {
     height: 32px;
     font-size: 14pt;
 }
@@ -417,8 +462,6 @@ div.errorMessage {
     bottom: 0;
     margin: 0;
     padding: 0;
-    /* border: 20px solid rgba(255, 255, 0, .8); */
-    /* border-image: repeating-linear-gradient( 45deg, pink, pink 1%, purple 1%, purple 8%) 10; */
     background: repeating-linear-gradient(
         45deg,
         rgba(255, 125, 125, 0.5),
@@ -427,7 +470,6 @@ div.errorMessage {
         rgba(0, 0, 0, 0.1) 90px
       );
 }
-
 
 #errorFrame.fixed {
     background: repeating-linear-gradient(
@@ -503,9 +545,6 @@ div.settingsHeaderSpace {
     user-select: none;
     border: 0.5px solid rgba(255, 255, 255, 0.15);
     text-align: center;
-    /* margin-top: 4px;
-    margin-bottom: 1px; */
-
     color: rgba(255, 255, 255, 0.75);
     background: #2c2c2c;
     transition: 0.1s;
@@ -652,6 +691,7 @@ div.contextMenuItem:hover
 {
     width: 100%;
 }
+
 .buttons .button
 {
     margin-left: 4px;
@@ -660,4 +700,48 @@ div.contextMenuItem:hover
     width: 100px;
     padding-top: 3px;
     height: 17px;
+}
+
+.BuffersList
+{
+    cursor: default;
+    display: block;
+    width: 100%;
+}
+
+.BuffersListItem
+{
+    display: block;
+}
+
+.BuffersListItem div
+{
+    display: inline-block;
+    height: 25px;
+}
+
+.BuffersListItem .Handle
+{
+    cursor: row-resize;
+    width: 15px;
+    height: 15px;
+}
+
+.BuffersListItem .BufferSettings,
+.BuffersListItem .BufferRemove
+{
+    cursor: pointer;
+    width: 15px;
+    height: 15px;
+    text-align: right;
+}
+
+.BuffersListItem .BufferSettings:hover
+{
+    color: rgb(255, 255, 0);
+}
+
+.BuffersListItem .BufferRemove:hover
+{
+    color: rgb(255, 0, 0);
 }

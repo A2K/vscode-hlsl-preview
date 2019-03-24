@@ -2,7 +2,7 @@
 	"name": "hlsl-preview",
 	"displayName": "HLSL preview",
 	"description": "Real time preview for HLSL shaders",
-	"version": "0.8.3",
+	"version": "0.9.1",
 	"publisher": "A2K",
 	"icon": "media/images/icon.png",
 	"bugs": {
@@ -28,7 +28,9 @@
 		"live"
 	],
 	"activationEvents": [
-		"onCommand:hlsl.preview.start"
+		"onCommand:hlsl.preview.start",
+		"onCommand:hlsl.preview.codegenue4",
+		"onCommand:hlsl.preview.codegenue4select"
 	],
 	"main": "./out/extension.js",
 	"scripts": {
@@ -36,7 +38,9 @@
 		"compile": "tsc -p ./",
 		"watch": "tsc -watch -p ./",
 		"postinstall": "node ./node_modules/vscode/bin/install",
-		"test": "npm run compile && node ./node_modules/vscode/bin/test"
+		"test": "npm run compile && node ./node_modules/vscode/bin/test",
+		"build-css": "node-sass --include-path scss scss/main.scss media/css/main.css",
+		"watch-css": "nodemon -e scss -x \"npm run build-css\""
 	},
 	"dependencies": {
 		"@types/get-port": "3.2.0",
@@ -51,27 +55,40 @@
 		"tempfile": "^2.0.0"
 	},
 	"devDependencies": {
-		"typescript": "^3.1.4",
-		"vscode": "^1.1.25",
-		"tslint": "^5.8.0",
-		"@types/node": "^8.10.25",
 		"@types/mocha": "^2.2.42",
+		"@types/node": "^8.10.25",
 		"@types/tempfile": "^2.0.0",
-		"tempfile": "^2.0.0"
+		"node-sass": "^4.11.0",
+		"nodemon": "^1.18.10",
+		"sass-convert": "^0.5.2",
+		"tempfile": "^2.0.0",
+		"tslint": "^5.8.0",
+		"typescript": "^3.1.4",
+		"vscode": "^1.1.25"
 	},
 	"contributes": {
 		"commands": [
 			{
 				"command": "hlsl.preview.start",
 				"title": "Preview HLSL"
+			},
+			{
+				"command": "hlsl.preview.codegenue4",
+				"title": "Generate UE4 custom node HLSL"
+			},
+			{
+				"command": "hlsl.preview.codegenue4select",
+				"title": "Generate UE4 custom node HLSL (new entry point)"
 			}
 		],
 		"menus": {
-			"editor/title/context": [{
-				"when": "resourceLangId == hlsl",
-				"command": "hlsl.preview.start",
-				"group": "navigation"
-			}]
+			"editor/title/context": [
+				{
+					"when": "resourceLangId == hlsl",
+					"command": "hlsl.preview.start",
+					"group": "navigation"
+				}
+			]
 		},
 		"configuration": {
 			"type": "object",
@@ -101,11 +118,6 @@
 						"type": "string"
 					},
 					"default": [
-						"-Od",
-						"-spirv",
-						"-fspv-reflect",
-						"-Vd",
-						"-Zi"
 					],
 					"description": "The DXC executable default arguments."
 				},
@@ -153,6 +165,11 @@
 					"type": "number",
 					"default": "500",
 					"description": "Trigger delay and max update frequency."
+				},
+				"hlsl.preview.retainContextWhenHidden": {
+					"type": "boolean",
+					"default": true,
+					"description": "Retain preview context when hidden"
 				}
 			}
 		}

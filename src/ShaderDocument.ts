@@ -3,11 +3,17 @@ import * as vscode from 'vscode';
 import { ShaderType } from './Enums';
 
 import * as Utils from './Utils';
+import * as WebUtils from './WebView/WebUtils';
 import GLSLCode from './GLSLCode';
+import { MergeObjects } from './WebView/WebUtils';
 
 
 export default class ShaderDocument
 {
+    public isBeingUpdated: boolean = false;
+
+    public includeDirs: string[] = [];
+
     private context: vscode.ExtensionContext;
 
 	public document: vscode.TextDocument;
@@ -15,54 +21,67 @@ export default class ShaderDocument
 	public entryPointName: string = "main";
 	public documentId: number;
 
-    public lastCompiledVersion: number | undefined = undefined;
+    public lastCompiledCode: string | undefined;
 
 	public lastUpdateVersion: number | undefined = undefined;
-    public isBeingUpdated: boolean = false;
-
     public glslCode: GLSLCode | undefined = undefined;
 
     public promises: { resolve: any, reject: any, version: number }[] = [];
 
     private _needsUpdate: boolean = true;
 
-    private lastCompiledIfdefs: string[] = [];
+    public lastCompiledIfdefs: string[] = [];
 
-	public set needsUpdate(value: boolean)
-	{
-		this._needsUpdate = value;
-	}
+    public bufferName: string | undefined;
 
-	public get needsUpdate(): boolean
+	public async getNeedsUpdate(): Promise<boolean>
 	{
-        if (this._needsUpdate || (this.lastCompiledVersion !== this.version))
-        {
-            return true;
-        }
-        if (this.enabledIfdefs.length !== this.lastCompiledIfdefs.length)
-        {
-            return true;
-        }
-        let definesDiffer = false;
-        this.enabledIfdefs.forEach(item => {
-            if (!(this.lastCompiledIfdefs.indexOf(item) < 0))
-            {
-                definesDiffer = true;
-            }
-        });
-        this.lastCompiledIfdefs.forEach(item => {
-            if (!(this.enabledIfdefs.indexOf(item) < 0))
-            {
-                definesDiffer = true;
-            }
-        });
-        return definesDiffer;
-	}
+        if (this._needsUpdate) { return true; }
+
+        let preprocessedCode = await this.getPreprocessedCode();
+
+        if (this.lastCompiledCode !== preprocessedCode) { return true; }
+
+        return !WebUtils.ArraysEqual(this.lastCompiledIfdefs, await this.getEnabledIfdefs());
+    }
+
+    public setNeedsUpdate(value: boolean = true)
+    {
+        this._needsUpdate = value;
+    }
 
 	public get text(): string
 	{
 		return this.document.getText();
-	}
+    }
+
+    public async getPreprocessedCode(): Promise<string>
+    {
+        let unresolved = new Utils.UnresolvedIncludes();
+        let code = await Utils.ResolveIncludes(this.fileName, this.text, this.includeDirs, unresolved);
+        if (unresolved.length)
+        {
+            console.error('UNRESOLVED INCLUDES:', unresolved.filenames.join(', '));
+
+            unresolved.includes.map(i =>
+            {
+                let pairs: {filename: string, parent: string, line: number }[] = [];
+
+                i.parents.forEach(p =>
+                {
+                    pairs.push({filename: i.filename, parent: p.filename, line: p.charIndex});
+                });
+
+                vscode.window.showErrorMessage('Failed to resolve includes:\n' +
+                    pairs.map(p => `${p.filename} at ${p.parent}:${p.line}`).join('\n')
+                );
+            });
+
+            return this.text;
+        }
+
+        return code;
+    }
 
 	public get version(): number
 	{
@@ -84,14 +103,23 @@ export default class ShaderDocument
         return this.fileName.split(/[/\\]/).pop() || this.fileName;
     }
 
+    public get directory(): string
+    {
+        // let filename = this.document.uri.fsPath;
+        let filename = this.document.fileName;
+        let parts = filename.split(/(?:\/|\\)/);
+        parts.pop();
+        return parts.join('\\');
+    }
+
     private _ifdefs: string[] = [];
     private _ifdefs_update_version: number | undefined = undefined;
 
-    public get ifdefs(): string[]
+    public async getIfdefs(): Promise<string[]>
     {
         if (this.version !== this._ifdefs_update_version)
         {
-            this._ifdefs = Utils.GetIfdefs(this.text);
+            this._ifdefs = await Utils.GetIfdefs(this.fileName, this.text, this.includeDirs);
             this._ifdefs_update_version = this.version;
         }
 
@@ -103,27 +131,51 @@ export default class ShaderDocument
         return 'uniforms_' + this.document.uri.toString();
     }
 
-    public get uniforms(): object
+    public loadUniformsValues(): object
     {
+        if (this.shaderType === ShaderType.buffer)
+        {
+            let data = this.context.workspaceState.get(this.uniformsSettingsKey + '__' + this.bufferName, {});
+            if (data)
+            {
+                return data;
+            }
+        }
+
 		return this.context.workspaceState.get(this.uniformsSettingsKey, {});
     }
 
-    public set uniforms(value: object)
+    public saveUniformsValues(value: object)
     {
-        this.context.workspaceState.update(this.uniformsSettingsKey, value);
+        if (this.shaderType === ShaderType.buffer)
+        {
+            this.context.workspaceState.update(this.uniformsSettingsKey + '__' + this.bufferName, value);
+        }
+        else
+        {
+            this.context.workspaceState.update(this.uniformsSettingsKey, value);
+        }
     }
 
     private get enabledIfdefsSettingsKey(): string
     {
+        if (this.shaderType === ShaderType.buffer)
+        {
+            return 'ifdefs_' + this.uri.toString() + '__' + this.bufferName;
+        }
         return 'ifdefs_' + this.uri.toString();
     }
 
     private get enabledIfdefsVersionSettingsKey(): string
     {
+        if (this.shaderType === ShaderType.buffer)
+        {
+            return 'ifdefs_version_' + this.uri.toString() + '__' + this.bufferName;
+        }
         return 'ifdefs_version_' + this.uri.toString();
     }
 
-    public get enabledIfdefs(): string[]
+    public async getEnabledIfdefs(): Promise<string[]>
     {
         let key = this.enabledIfdefsSettingsKey;
 
@@ -139,10 +191,11 @@ export default class ShaderDocument
 
             if (savedIfdefs)
             {
+                let currentIfdefs = await this.getIfdefs();
                 return savedIfdefs.filter(
                     (savedIfdef: string): boolean =>
                     {
-                        return this.ifdefs.indexOf(savedIfdef) >= 0;
+                        return currentIfdefs.indexOf(savedIfdef) >= 0;
                     }
                 );
             }
@@ -153,40 +206,21 @@ export default class ShaderDocument
         }
     }
 
-    public set enabledIfdefs(newEnabledIfdefs: string[])
+    public async setEnabledIfdefs(newEnabledIfdefs: string[])
     {
-        if (this.enabledIfdefs.length !== newEnabledIfdefs.length)
+        if (WebUtils.ArraysEqual(newEnabledIfdefs, await this.getEnabledIfdefs()))
         {
-            this.needsUpdate = true;
+            this._needsUpdate = true;
         }
-        else
-        {
-            this.enabledIfdefs.forEach(oldEnabledIfdef =>
-            {
-                if (newEnabledIfdefs.indexOf(oldEnabledIfdef) < 0)
-                {
-                    this.needsUpdate = true;
-                }
-            });
 
-            if (!this.needsUpdate)
-            {
-                newEnabledIfdefs.forEach(newEnabledIfdef =>
-                {
-                    if (this.enabledIfdefs.indexOf(newEnabledIfdef) < 0)
-                    {
-                        this.needsUpdate = true;
-                    }
-                });
-            }
-        }
+        let currentIfdefs = await this.getIfdefs();
 
         this.context.workspaceState.update(
             this.enabledIfdefsSettingsKey,
             newEnabledIfdefs.filter(
                 (newIfdef: string): boolean =>
                 {
-                    return this.ifdefs.indexOf(newIfdef) >= 0;
+                    return currentIfdefs.indexOf(newIfdef) >= 0;
                 }
             )
         );
@@ -216,14 +250,30 @@ export default class ShaderDocument
 		}
 
 		return result;
-	}
+    }
 
-	constructor(context: vscode.ExtensionContext, documentId:number, document: vscode.TextDocument, shaderType: ShaderType = ShaderType.pixel, lastUpdateVersion: number | undefined = undefined)
+    get bufferSettingsKey(): string
+    {
+        return 'buffer_settings_' + this.uri.toString() + '__' + this.bufferName;
+    }
+
+    public get bufferSettings(): object
+    {
+        return this.context.workspaceState.get(this.bufferSettingsKey, {});
+    }
+
+    public set bufferSettings(settings: object)
+    {
+        let s = this.bufferSettings;
+        MergeObjects(s, settings);
+        this.context.workspaceState.update(this.bufferSettingsKey, s);
+    }
+
+	constructor(context: vscode.ExtensionContext, documentId:number, document: vscode.TextDocument, shaderType: ShaderType = ShaderType.pixel)
 	{
         this.context = context;
 		this.documentId = documentId;
 		this.document = document;
 		this.shaderType = shaderType;
-		this.lastUpdateVersion = lastUpdateVersion;
 	}
 }

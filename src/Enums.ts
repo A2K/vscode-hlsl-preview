@@ -31,7 +31,8 @@ export namespace RunTrigger
 export enum ShaderType
 {
     pixel,
-    vertex
+    vertex,
+    buffer
 }
 
 export namespace ShaderType
@@ -40,16 +41,34 @@ export namespace ShaderType
 
     export let strings = {
         pixel: 'pixel',
-        vertex: 'vertex'
+        vertex: 'vertex',
+        buffer: 'buffer'
     };
 
     export let from = function (value: string): ShaderType
     {
-        if (value === 'vertex')
+        switch(value)
         {
-            return ShaderType.vertex;
+            case 'vertex': return ShaderType.vertex;
+            case 'buffer': return ShaderType.buffer;
         }
 
 		return ShaderType.pixel;
+    };
+
+    export let GetShaderTypeName = function(type: ShaderType): string
+    {
+        switch(type)
+        {
+            case ShaderType.pixel: return 'pixel';
+            case ShaderType.vertex: return 'vertex';
+            case ShaderType.buffer: return 'buffer';
+            default:
+            {
+                console.error('invalid shader type:', type);
+            }
+        }
+
+        return 'pixel';
     };
 }

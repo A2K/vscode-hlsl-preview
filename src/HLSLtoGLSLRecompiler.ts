@@ -1,17 +1,18 @@
 'use strict';
 
 import * as fs from 'fs';
+import * as path from 'path';
 
 import GLSLCode from './GLSLCode';
 import GLSLCompiler from './GLSLCompiler';
-import HLSLCompiler from './HLSLCompiler';
+import HLSLCompiler, { HLSLCompileResult } from './HLSLCompiler';
 import ShaderDocument from './ShaderDocument';
 
 
 export default class HLSLtoGLSLRecompiler {
 
-    private hlsl: HLSLCompiler = new HLSLCompiler();
-    private glsl: GLSLCompiler = new GLSLCompiler();
+    public hlsl: HLSLCompiler = new HLSLCompiler();
+    public glsl: GLSLCompiler = new GLSLCompiler();
 
     public canUseNativeBinaries(): Promise<boolean>
     {
@@ -20,55 +21,58 @@ export default class HLSLtoGLSLRecompiler {
         );
     }
 
+    public GetIncludeDirectories(shaderDocument: ShaderDocument): string[]
+    {
+        let dirname = path.dirname(shaderDocument.fileName);
+
+        return this.hlsl.includeDirs.map((dir: string) =>
+        {
+            if (dir === '.')
+            {
+                return dirname;
+            }
+
+            if (dir.startsWith('./'))
+            {
+                return dirname + dir.substr(1);
+            }
+
+            if (dir.startsWith('../'))
+            {
+                return dirname + '/' + dir;
+            }
+
+            return dir;
+        });
+    }
+
     public loadConfiguration()
     {
         this.glsl.loadConfiguration();
         this.hlsl.loadConfiguration();
     }
 
-    public HLSL2GLSL(shaderDocument: ShaderDocument): Promise<GLSLCode>
+    public PreprocessHLSL(shaderDocument: ShaderDocument): Promise<HLSLCompileResult>
     {
-        return new Promise<GLSLCode>((resolve, reject) =>
+        return this.hlsl.CompilePreprocess(shaderDocument);
+    }
+
+    public async HLSL2GLSL(shaderDocument: ShaderDocument): Promise<GLSLCode>
+    {
+        shaderDocument.lastCompiledCode = await shaderDocument.getPreprocessedCode();
+        shaderDocument.lastCompiledIfdefs = await shaderDocument.getEnabledIfdefs();
+
+        let res = await this.hlsl.CompileToSPIRV(shaderDocument);
+
+        if (!res.filename)
         {
-            if (shaderDocument.lastCompiledVersion === shaderDocument.version && shaderDocument.glslCode)
-            {
-                resolve(shaderDocument.glslCode);
-                return;
-            }
+            throw new Error("no SPIRV file generated");
+        }
 
-            this.hlsl.CompileToSPIRV(shaderDocument).then(
-                (filename) =>
-                {
-                    if (!filename)
-                    {
-                        reject("no SPIRV file generated");
-                        return;
-                    }
+        let glslCode:GLSLCode = await this.glsl.Process(shaderDocument, res.filename);
 
-                    this.glsl.Process(shaderDocument, filename)
-                    .catch(reject)
-                    .then(
-                        (glslCode) =>
-                        {
-                            fs.unlink(filename, () => {});
+        fs.unlink(res.filename, () => {});
 
-                            if (glslCode)
-                            {
-                                resolve(glslCode);
-                            }
-                            else
-                            {
-                                reject("no GLSL code generated");
-                            }
-                        }
-                    );
-                }
-            ).catch(
-                (reason) =>
-                {
-                    reject(reason);
-                }
-            );
-        });
+        return glslCode;
     }
 }
