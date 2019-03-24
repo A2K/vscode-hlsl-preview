@@ -1,0 +1,187 @@
+
+.vectorInputBox {
+    display: inline-block;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    white-space: nowrap;
+}
+
+.vectorInput2 {
+    display: inline-block;
+    width: 48.5%;
+}
+
+.vectorInput3 {
+    display: inline-block;
+    width: 31.25%;
+}
+
+.vectorInput4 {
+    display: inline-block;
+    width: 22.5%;
+}
+
+input, select {
+    // user-select: text;
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(0, 0, 0, 1);
+    font-size: 8pt;
+    font-family: Arial, Helvetica, sans-serif;
+    width: 100%;
+    border: 1px solid rgba(150, 150, 150, 0.5);
+    padding: 1px;
+    padding-left: 2px;
+    margin: 0;
+    &:hover {
+      border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+    &:focus, &:active, &:focus:active {
+      color: rgba(255, 255, 255, 1);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+    }
+}
+
+.inputBox {
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+    // position: relative;
+    width: 150px;
+    margin-right: 4px;
+}
+
+
+input[type=number] {
+    &::-webkit-inner-spin-button, &::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+}
+
+div.displayFileInput {
+    cursor: pointer;
+    &:hover {
+    color: rgba(225, 175, 110, 0.9);
+    }
+}
+
+div.displayOpen {
+    display: inline-block;
+    padding-right: 5px;
+    padding-bottom: 2px;
+}
+
+div.displayFilename {
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+    position: relative;
+    top: 3px;
+}
+
+input.ifdefCheckbox {
+    width: fit-content;
+}
+
+input[type=checkbox] {
+    display:inline-block;
+    cursor: pointer;
+    visibility: hidden;
+
+    $size: 11px;
+    position: relative;
+    top: 0;
+    left: 0;
+
+    &:before, &:after {
+        position: absolute;
+        top: 0;
+        left: 0;
+        visibility: visible;
+        display: block;
+        width: $size;
+        height: $size;
+        content: '';
+    }
+
+    $toggleTransition: opacity 0.1s ease-out;
+
+    &:before {
+        background: black;
+        transition: $toggleTransition;
+        border: 1px solid rgba(155, 155, 155, 0.75);
+    }
+
+    &:hover:before{
+        transition: $toggleTransition;
+        border: 1px solid rgba(205, 205, 205, 0.9);
+    }
+
+    &:after {
+        opacity: 0;
+        transition: $toggleTransition;
+        content: '✔';
+        left: 2.5px;
+        top: -2px;
+    }
+
+    &:checked:after {
+        opacity: 1;
+        transition: $toggleTransition;
+    }
+}
+
+
+input[type=radio] {
+    display:inline-block;
+    cursor: pointer;
+    visibility: hidden;
+
+    $size: 11px;
+
+    position: relative;
+    top: 0;
+    left: 0;
+
+    &:before, &:after {
+        background: black;
+        position: absolute;
+        top: 0;
+        left: 0;
+        visibility: visible;
+        display: block;
+        width: $size;
+        height: $size;
+        content: ' ';
+        border: 1px solid rgba(155, 155, 155, 0.75);
+        border-radius: 50%;
+    }
+
+    &:hover:before,
+    &:hover:after {
+        border: 1px solid rgba(205, 205, 205, 0.9);
+    }
+
+    $toggleTransition: opacity 0.1s ease-out;
+
+    &:after {
+        opacity: 0;
+        transition: $toggleTransition;
+        $centerColor: rgba(205, 205, 205, 1);
+        background: radial-gradient(
+            $centerColor 0%,
+            $centerColor 35%,
+            rgba(50, 50, 50, 1.0) 55%,
+            rgba(0, 0, 0, 0) 100%);
+    }
+
+    &:checked:after {
+        opacity: 1;
+        transition: $toggleTransition;
+    }
+
+
+}

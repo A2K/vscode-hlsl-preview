@@ -1,0 +1,23 @@
+
+div.ContextMenu {
+  position: fixed;
+  width: fit-content;
+  height: fit-content;
+  top: 0px;
+  left: 0px;
+  cursor: default;
+  background: rgba(0, 0, 0, 0.75);
+  color: rgba(255, 255, 255, 0.9);
+  border: 0.5px solid rgba(255, 255, 255, 0.25);
+}
+
+div.contextMenuItem {
+  cursor: default;
+  padding: 4px;
+  padding-left: 8px;
+  padding-right: 8px;
+  min-width: 75px;
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}

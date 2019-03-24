@@ -1,0 +1,76 @@
+div {
+    &.errorMessage {
+      position: fixed;
+      right: 3px;
+      bottom: 7px;
+      margin-left: 7px;
+      background: rgba(0, 0, 0, 0.5);
+      color: rgba(255, 255, 255, 0.9);
+      border: 0.5px solid rgba(255, 0, 0, 0.25);
+      padding: 8px;
+      white-space: pre-wrap;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+  &.errorMessageLine.mainMessage {
+    font-weight: bolder;
+    color: rgba(225, 225, 225, 0.9);
+  }
+  &.errorMessage {
+    div {
+      &.errorMessageLine div {
+        display: inline;
+      }
+      &.filename::after, &.line::after, &.column::after, &.warning::after, &.error::after {
+        content: ":";
+        color: rgba(255, 255, 255, 0.5);
+      }
+      &.line {
+        color: rgba(255, 255, 255, 1);
+      }
+      &.errorLocation:hover div.line {
+        color: inherit;
+      }
+      &.error::before {
+        content: " ";
+      }
+      &.errorLocation {
+        cursor: pointer;
+        &:hover {
+          color: rgba(225, 225, 255, 1);
+        }
+      }
+      &.message::before {
+        content: " ";
+      }
+      &.level {
+        &.error {
+          color: rgba(255, 125, 125, 0.9);
+        }
+        &.warning {
+          color: rgba(195, 195, 0, 0.9);
+        }
+      }
+    }
+    max-height: 50%;
+    width: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+}
+
+
+#errorFrame {
+    display: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 0;
+    background: repeating-linear-gradient(45deg, rgba(255, 125, 125, 0.5), rgba(255, 125, 125, 0.5) 40px, rgba(0, 0, 0, 0.1) 40px, rgba(0, 0, 0, 0.1) 90px);
+    &.fixed {
+      background: repeating-linear-gradient(45deg, rgba(125, 255, 125, 0.25), rgba(125, 255, 125, 0.25) 40px, rgba(0, 0, 0, 0.01) 40px, rgba(0, 0, 0, 0.01) 90px);
+    }
+  }

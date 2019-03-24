@@ -434,10 +434,16 @@ export default class HLSLPreview
 
         if (this.useNativeBinaries || this.panel)
         {
-            let syntaxTree = await this.GetSyntaxTree(shaderDocument);
-
-            let functions = SyntaxTreeParser.getFunctions(syntaxTree);
-            functionNames = functions.map(f => (f || { name: ''}).name);
+            try
+            {
+                functionNames = SyntaxTreeParser.getFunctions(
+                    await this.GetSyntaxTree(shaderDocument)
+                ).map(f => (f || { name: ''}).name);
+            }
+            catch(e)
+            {
+                functionNames = [];
+            }
         }
 
         functionNames = functionNames.reverse();

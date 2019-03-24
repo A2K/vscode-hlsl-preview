@@ -1,0 +1,105 @@
+
+div.Settings {
+    &.hidden {
+      cursor: pointer;
+      background: rgba(0, 0, 0, 0.1);
+      color: rgba(255, 255, 255, 0.5);
+      border: 0.5px solid rgba(255, 255, 255, 0.1);
+      padding: 3px;
+      border-radius: 50%;
+      &:hover {
+        color: rgba(255, 255, 255, 0.75);
+        border: 0.5px solid rgba(255, 255, 255, 0.25);
+        background: rgba(0, 0, 0, 0.75);
+        transition: 0.1s;
+      }
+    }
+    transition: 0.1s;
+  }
+
+  div.Settings.hidden div.button {
+    margin-top: 0px;
+    margin-left: 2px;
+    margin-right: 2px;
+    position: relative;
+    top: -2px;
+    border: none;
+    width: auto;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    background: transparent;
+    transition: 0s;
+  }
+
+div.settingsScrollBox {
+    max-height: 600px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+  }
+
+  .ModeSwitch {
+    margin-top: 0px;
+    margin-bottom: 6px;
+    .Label, .Mode {
+      display: inline-block;
+    }
+    .Label {
+      cursor: default;
+      position: relative;
+      top: -5px;
+      padding-right: 10px;
+    }
+    .Mode {
+      width: 30px;
+      height: 22px;
+      cursor: pointer;
+      border: 0.5px solid rgba(255, 255, 255, 0.15);
+      text-align: center;
+      color: rgba(255, 255, 255, 0.75);
+      background: #2c2c2c;
+      transition: 0.1s;
+      margin-right: 5px;
+      overflow: hidden;
+      &.Active {
+        background: #6c6c6c;
+      }
+      .Content {
+        position: relative;
+        top: 1.5px;
+      }
+      &:hover {
+        background: #3c3c3c;
+        border: 0.5px solid rgba(255, 255, 255, 0.45);
+        transition: 0.1s;
+      }
+      &.Active:hover {
+        background: #8c8c8c;
+        border: 0.5px solid rgba(255, 255, 255, 0.45);
+        transition: 0.1s;
+      }
+      &.cube {
+        .Content
+        {
+          position: relative;
+          top: -1.5px;
+          font-size: 18px;
+        }
+      }
+      &.cylinder {
+        .Content
+        {
+          position: relative;
+          top: -2.5px;
+          font-size: 17px;
+        }
+      }
+      &.cone {
+        .Content
+        {
+          position: relative;
+          top: -2px;
+          font-size: 18px;
+        }
+      }
+    }
+  }

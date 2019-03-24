@@ -1,0 +1,21 @@
+.UniformsSettingsView
+{
+    table {
+        border-left: 0px;
+        border-right: 0px;
+        border-collapse: collapse;
+        tr {
+            td:first-child {
+                text-align: right;
+                font-size: 12px;
+                text-shadow: 0px 0px 4px black;
+            }
+        }
+    }
+}
+
+.UniformFieldView {
+    &:hover {
+        background: rgba(75, 75, 75, 0.9);
+    }
+}

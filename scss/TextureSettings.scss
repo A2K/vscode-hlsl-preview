@@ -1,0 +1,74 @@
+
+table {
+    &.textureSettingsTable {
+      border-collapse: collapse;
+      width: 100%;
+      td {
+        /* width: 100%; */
+        vertical-align: top;
+      }
+      tr {
+        td {
+          &:first-child {
+            text-align: right;
+            padding-left: 16px;
+            padding-right: 8px;
+          }
+          &:nth-child(1) {
+            width: 60px;
+          }
+        }
+        width: 100%;
+        background: rgba(0, 0, 0, 0.1);
+        &:not(:last-child) {
+          width: 100%;
+          background: rgba(0, 0, 0, 0.1);
+          border-bottom: 1pt solid black;
+        }
+      }
+      td:first-child {
+        border-right: 1pt solid black;
+      }
+    }
+    &.textureSettingsInnerTable {
+      width: 100%;
+      tr td {
+        &:not(:last-child) {
+          width: 75px;
+          text-align: right;
+        }
+        &:last-child {
+          text-align: left;
+        }
+      }
+      input[type=checkbox] {
+        width: fit-content;
+      }
+    }
+    &.textureSettingsTable select {
+      background: black;
+      color: white;
+      border: 1px solid grey;
+      width: 75px;
+    }
+  }
+
+div {
+    &.textureSettingsActivationButton {
+      display: inline;
+      cursor: pointer;
+      color: rgba(255, 255, 255, 0.75);
+      &:hover {
+        display: inline;
+        cursor: pointer;
+        color: rgba(255, 255, 255, 1);
+      }
+    }
+  }
+
+
+div.HeaderWindow.textureSettings:hover {
+    background: rgba(0, 0, 0, 0.75);
+    opacity: 1;
+    transition: 0.25s;
+  }

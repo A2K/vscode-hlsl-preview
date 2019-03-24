@@ -1,0 +1,57 @@
+
+  $loadingStripeColor: rgba(230, 160, 11, 1.0);
+  $loadingStripeColor2: rgba(0, 0, 0, 1.0);
+.loading {
+    height: auto;
+    text-align: center;
+    color: #4c3f2e;
+    position: relative;
+    overflow: hidden;
+    padding: 1rem;
+    margin: 3%;
+    font-style: italic;
+  }
+  .loadingIndicator .background {
+    position: absolute;
+    left: -146px;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: -1;
+    background: repeating-linear-gradient(45deg, $loadingStripeColor, $loadingStripeColor 40px, $loadingStripeColor2 40px, $loadingStripeColor2 90px);
+    animation-name: MOVE-BG;
+    animation-duration: 1.0s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  div {
+    &.loadingIndicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      z-index: 999999999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      div.text {
+        color: white;
+        position: fixed;
+        width: 250px;
+        height: 50px;
+        border: 3px solid $loadingStripeColor;
+        box-shadow: 5px 5px 50px 0px rgba(0, 0, 0, 0.25);
+        background: rgb(0, 0, 0);
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 20px;
+      }
+    }
+}

@@ -86,7 +86,6 @@ class MessageProcessor extends EventEmitter
 
         let handleResponse = (result) =>
         {
-            console.log('dumpAST response:', typeof(result.data), new Uint8Array(result.data).toString('utf-8'));
             this.postMessage('dumpAST', {
                 version: data.version,
                 documentId: data.documentId,

@@ -1,0 +1,31 @@
+.IfdefFieldView {
+    input[type=checkbox] {
+        position: relative;
+        top: 2px;
+        left: 6px;
+    }
+
+    &:hover {
+        background: red;
+    }
+}
+
+.IfdefsSettingsView {
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        border-left: 0px;
+        border-right: 0px;
+    }
+    tr {
+        td:last-child {
+            label {
+                display: inline-block;
+                width: 100%;
+            }
+        }
+    }
+    tr:hover {
+        background: rgba(75, 75, 75, 0.9);
+    }
+}
