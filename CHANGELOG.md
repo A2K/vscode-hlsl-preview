@@ -1,8 +1,12 @@
 # Change Log
 
-## 0.9.1
+## 0.9.2
 * Improved #inlude statements support
 * Added buffers
+    * Added buffer preview mode with mouse drag and zoom
+    * Buffers can be used just list textures
+* Added mode geometries to 3D preview mode
+* Improved user interface
 
 ## 0.8.2
 

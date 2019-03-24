@@ -35,7 +35,7 @@ To create a custom shader parameter declare a global variable or use `// INPUTS(
     * `iMouse.xy` - cursor relative location in viewport
     * `iMouse.z` - seconds **left** mouse button held down or **< 0.0**
     * `iMouse.w` - seconds **right** mouse button held down or **< 0.0**
-* Virtual camera
+* Virtual camera matrices available in 2D preview mode:
     * `iVirtualProjectionMatrix`
     * `iVirtualProjectionInverseMatrix`
     * `iVirtualModelViewMatrix`
@@ -44,7 +44,8 @@ To create a custom shader parameter declare a global variable or use `// INPUTS(
 
 ## Limitations
 * `uint`s are not supported.
-* Textures can not be used as function parameters
+* bitwise operations are limited.
+* Textures can not always be used as function parameters.
 
 ## Optional compiler binaries
 
