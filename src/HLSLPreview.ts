@@ -1041,6 +1041,7 @@ export default class HLSLPreview
                         let columnNumber = parseInt(e.data.column);
                         let filename = e.data.filename;
 
+                        console.log(`goto ${filename}:${lineNumber}:${columnNumber}`);
                         const FindDocumentByFilname = (filename: string) =>
                         {
                             return vscode.workspace.textDocuments.find(
@@ -1092,7 +1093,7 @@ export default class HLSLPreview
                         }
                         else
                         {
-                            vscode.window.showTextDocument(filename, {
+                            vscode.window.showTextDocument(vscode.Uri.file(path.normalize(filename)), {
                                 viewColumn: column
                             }).then((editor: vscode.TextEditor) => {
                                 SetCursor(editor, lineNumber, columnNumber);
