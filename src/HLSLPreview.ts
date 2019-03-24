@@ -157,23 +157,42 @@ export default class HLSLPreview
         }
     }
 
-    public onStartCommand()
+    public onStartCommand(...args: any[])
     {
-        if (!vscode.window.activeTextEditor)
+        let doc: vscode.TextDocument | undefined = (() =>
         {
-			console.error('no active text editor');
-			return;
-		}
+            if (args.length)
+            {
+                if (args[0] instanceof vscode.Uri)
+                {
+                    const FindDocumentByFilname = (filename: string) =>
+                    {
+                        return vscode.workspace.textDocuments.find(
+                            (doc) => path.normalize(doc.fileName) === path.normalize(filename)
+                        );
+                    };
+                    return FindDocumentByFilname(args[0].fsPath);
+                }
+            }
+            if (!vscode.window.activeTextEditor)
+            {
+                console.error('no active text editor');
+                return;
+            }
 
-        if (!vscode.window.activeTextEditor.document)
+            if (!vscode.window.activeTextEditor.document)
+            {
+                console.error('no active document');
+                return;
+            }
+
+            return vscode.window.activeTextEditor.document;
+        })();
+
+        if (doc)
         {
-			console.error('no active document');
-			return;
-		}
-
-		let doc = vscode.window.activeTextEditor.document;
-
-		this.PreviewDocument(doc);
+            this.PreviewDocument(doc);
+        }
     }
 
 
